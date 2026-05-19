@@ -78,9 +78,7 @@ export default function AgenteOperacionalWidget() {
             <div className="flex items-center gap-2 border-b border-white/[0.06] bg-gold-500/[0.06] px-4 py-2.5">
               <LionIcon size={30} />
               <div className="leading-tight">
-                <div className="text-xs font-bold text-ink-50">
-                  Lion · Agente Operacional
-                </div>
+                <div className="text-xs font-bold text-ink-50">Lion</div>
                 <div className="text-[10px] text-ink-500">
                   {saud}, {membroAtual.nome.split(' ')[0]}
                 </div>

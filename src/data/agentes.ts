@@ -63,7 +63,7 @@ export const AGENTES_IA: AgenteIA[] = [
   {
     id: 'operacional',
     nome: 'Lion',
-    papel: 'Agente operacional — gargalos, atrasos e organização',
+    papel: 'Organização, gargalos, prazos e produtividade da operação',
     icone: '🦁',
     cor: '#b8943f',
     fase: 'Todas as fases',

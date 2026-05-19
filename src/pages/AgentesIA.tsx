@@ -3,6 +3,7 @@ import { Sparkles, ArrowRight } from 'lucide-react'
 import { PageHeader, Badge } from '@/components/ui'
 import AgenteChat, { type AgenteInfo } from '@/components/AgenteChat'
 import { AGENTES_IA } from '@/data/agentes'
+import LionIcon from '@/components/LionIcon'
 
 export default function AgentesIA() {
   const [ativo, setAtivo] = useState<AgenteInfo | null>(null)
@@ -28,7 +29,7 @@ export default function AgentesIA() {
                 className="grid h-12 w-12 place-items-center rounded-xl text-2xl"
                 style={{ backgroundColor: `${a.cor}1f` }}
               >
-                {a.icone}
+                {a.id === 'operacional' ? <LionIcon size={34} /> : a.icone}
               </div>
               <div>
                 <div className="font-display text-sm font-bold text-ink-50">

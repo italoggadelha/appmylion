@@ -5,6 +5,7 @@ import { X, Send, Sparkles } from 'lucide-react'
 import { useData } from '@/lib/data'
 import { supabase, SUPABASE_PRONTO } from '@/lib/supabase'
 import { Avatar } from './ui'
+import LionIcon from './LionIcon'
 
 interface Msg {
   role: 'user' | 'assistant'
@@ -105,7 +106,7 @@ export default function AgenteChat({
                 className="grid h-10 w-10 place-items-center rounded-xl text-xl"
                 style={{ backgroundColor: `${agente.cor}1f` }}
               >
-                {agente.icone}
+                {agente.nome === 'Lion' ? <LionIcon size={20} /> : agente.icone}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="font-display text-sm font-bold text-ink-50">
@@ -169,7 +170,7 @@ export default function AgenteChat({
                       className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-sm"
                       style={{ backgroundColor: `${agente.cor}1f` }}
                     >
-                      {agente.icone}
+                      {agente.nome === 'Lion' ? <LionIcon size={20} /> : agente.icone}
                     </div>
                   ) : (
                     <Avatar nome="Você" size={28} />
@@ -191,7 +192,7 @@ export default function AgenteChat({
                     className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-sm"
                     style={{ backgroundColor: `${agente.cor}1f` }}
                   >
-                    {agente.icone}
+                    {agente.nome === 'Lion' ? <LionIcon size={20} /> : agente.icone}
                   </div>
                   <div className="rounded-2xl border border-white/[0.06] bg-ink-850 px-3.5 py-2.5">
                     <div className="flex gap-1">
