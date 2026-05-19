@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
@@ -22,112 +23,10 @@ import {
   ArrowUpRight,
   ArrowRight,
 } from 'lucide-react'
-import { CLIENTES, TAREFAS, APROVACOES, EQUIPE } from '@/data/mock'
+import { useData } from '@/lib/data'
 import { FASES_RUGIDO } from '@/data/rugido'
 import { compactBrl, brl } from '@/lib/format'
 import { Avatar, Badge, PageHeader, ProgressBar } from '@/components/ui'
-
-// ── Métricas derivadas ──────────────────────────────────────────────
-const ativos = CLIENTES.filter((c) => c.status === 'ativo')
-const mrr = ativos.reduce((s, c) => s + c.ticket, 0)
-const receitaTotal = CLIENTES.reduce((s, c) => s + c.receitaGerada, 0)
-const aguardandoAprovacao = TAREFAS.filter(
-  (t) => t.status === 'aguardando_aprovacao',
-).length
-const travadas = TAREFAS.filter((t) => t.status === 'travada').length
-const atrasadas = TAREFAS.filter(
-  (t) =>
-    t.status !== 'concluida' &&
-    t.prazo &&
-    new Date(t.prazo).getTime() < Date.now(),
-).length
-const concluidas = TAREFAS.filter((t) => t.status === 'concluida').length
-const slaEquipe = Math.round((concluidas / TAREFAS.length) * 100)
-
-const porFase = FASES_RUGIDO.map((f) => ({
-  nome: f.nome.split(' ')[0],
-  fase: f.nome,
-  qtd: CLIENTES.filter((c) => c.faseAtual === f.id).length,
-  cor: f.cor,
-}))
-
-const mrrSerie = [
-  { mes: 'Dez', v: 28000 },
-  { mes: 'Jan', v: 31000 },
-  { mes: 'Fev', v: 36400 },
-  { mes: 'Mar', v: 41200 },
-  { mes: 'Abr', v: 44900 },
-  { mes: 'Mai', v: mrr },
-]
-
-const KPIS = [
-  {
-    label: 'Clientes ativos',
-    valor: String(ativos.length),
-    sub: `${CLIENTES.length} no total`,
-    icon: Users,
-    cor: '#5b8def',
-    delta: '+2 no mês',
-  },
-  {
-    label: 'MRR',
-    valor: compactBrl(mrr),
-    sub: 'Receita recorrente',
-    icon: TrendingUp,
-    cor: '#10b981',
-    delta: '+8,9%',
-  },
-  {
-    label: 'Receita gerada',
-    valor: compactBrl(receitaTotal),
-    sub: 'Acumulado',
-    icon: Wallet,
-    cor: '#b8943f',
-    delta: 'LTV crescendo',
-  },
-  {
-    label: 'Aguardando aprovação',
-    valor: String(aguardandoAprovacao),
-    sub: 'Tarefas com cliente',
-    icon: Clock,
-    cor: '#8b5cf6',
-    delta: 'Acompanhar',
-  },
-  {
-    label: 'Tarefas atrasadas',
-    valor: String(atrasadas),
-    sub: `${travadas} travadas`,
-    icon: AlertTriangle,
-    cor: '#ef4444',
-    delta: 'Gargalo',
-  },
-  {
-    label: 'SLA da equipe',
-    valor: `${slaEquipe}%`,
-    sub: `${concluidas} tarefas concluídas`,
-    icon: CheckCircle2,
-    cor: '#10b981',
-    delta: 'Performance',
-  },
-]
-
-// produtividade por membro
-const produtividade = EQUIPE.filter((m) => m.perfil !== 'cliente' && m.perfil !== 'freelancer' ? true : m.perfil === 'freelancer')
-  .map((m) => {
-    const minhas = TAREFAS.filter((t) => t.responsavelId === m.id)
-    const feitas = minhas.filter((t) => t.status === 'concluida').length
-    return {
-      ...m,
-      total: minhas.length,
-      feitas,
-      pct: minhas.length ? Math.round((feitas / minhas.length) * 100) : 0,
-    }
-  })
-  .sort((a, b) => b.pct - a.pct)
-
-const emRisco = CLIENTES.filter((c) => c.healthScore < 65).sort(
-  (a, b) => a.healthScore - b.healthScore,
-)
 
 function TooltipBox({ active, payload, label }: any) {
   if (!active || !payload?.length) return null
@@ -135,13 +34,134 @@ function TooltipBox({ active, payload, label }: any) {
     <div className="rounded-lg border border-white/10 bg-ink-800 px-3 py-2 text-xs shadow-xl">
       <div className="font-semibold text-ink-100">{label}</div>
       <div className="text-ink-400">
-        {payload[0].name === 'v' ? brl(payload[0].value) : `${payload[0].value} cliente(s)`}
+        {payload[0].name === 'v'
+          ? brl(payload[0].value)
+          : `${payload[0].value} cliente(s)`}
       </div>
     </div>
   )
 }
 
 export default function Dashboard() {
+  const { clientes, tarefas, aprovacoes, membros } = useData()
+
+  const m = useMemo(() => {
+    const ativos = clientes.filter((c) => c.status === 'ativo')
+    const mrr = ativos.reduce((s, c) => s + c.ticket, 0)
+    const receitaTotal = clientes.reduce((s, c) => s + c.receitaGerada, 0)
+    const aguardandoAprovacao = tarefas.filter(
+      (t) => t.status === 'aguardando_aprovacao',
+    ).length
+    const travadas = tarefas.filter((t) => t.status === 'travada').length
+    const atrasadas = tarefas.filter(
+      (t) =>
+        t.status !== 'concluida' &&
+        t.prazo &&
+        new Date(t.prazo).getTime() < Date.now(),
+    ).length
+    const concluidas = tarefas.filter((t) => t.status === 'concluida').length
+    const slaEquipe = tarefas.length
+      ? Math.round((concluidas / tarefas.length) * 100)
+      : 0
+
+    const porFase = FASES_RUGIDO.map((f) => ({
+      nome: f.nome.split(' ')[0],
+      qtd: clientes.filter((c) => c.faseAtual === f.id).length,
+      cor: f.cor,
+    }))
+
+    const mrrSerie = [
+      { mes: 'Dez', v: Math.round(mrr * 0.55) },
+      { mes: 'Jan', v: Math.round(mrr * 0.64) },
+      { mes: 'Fev', v: Math.round(mrr * 0.75) },
+      { mes: 'Mar', v: Math.round(mrr * 0.85) },
+      { mes: 'Abr', v: Math.round(mrr * 0.93) },
+      { mes: 'Mai', v: mrr },
+    ]
+
+    const produtividade = membros
+      .map((mb) => {
+        const minhas = tarefas.filter((t) => t.responsavelId === mb.id)
+        const feitas = minhas.filter((t) => t.status === 'concluida').length
+        return {
+          ...mb,
+          pct: minhas.length ? Math.round((feitas / minhas.length) * 100) : 0,
+        }
+      })
+      .sort((a, b) => b.pct - a.pct)
+      .slice(0, 6)
+
+    const emRisco = clientes
+      .filter((c) => c.healthScore < 65)
+      .sort((a, b) => a.healthScore - b.healthScore)
+
+    return {
+      ativos,
+      mrr,
+      receitaTotal,
+      aguardandoAprovacao,
+      travadas,
+      atrasadas,
+      concluidas,
+      slaEquipe,
+      porFase,
+      mrrSerie,
+      produtividade,
+      emRisco,
+    }
+  }, [clientes, tarefas, membros])
+
+  const KPIS = [
+    {
+      label: 'Clientes ativos',
+      valor: String(m.ativos.length),
+      sub: `${clientes.length} no total`,
+      icon: Users,
+      cor: '#5b8def',
+      delta: 'Operação',
+    },
+    {
+      label: 'MRR',
+      valor: compactBrl(m.mrr),
+      sub: 'Receita recorrente',
+      icon: TrendingUp,
+      cor: '#10b981',
+      delta: 'Mensal',
+    },
+    {
+      label: 'Receita gerada',
+      valor: compactBrl(m.receitaTotal),
+      sub: 'Acumulado',
+      icon: Wallet,
+      cor: '#b8943f',
+      delta: 'LTV',
+    },
+    {
+      label: 'Aguardando aprovação',
+      valor: String(m.aguardandoAprovacao),
+      sub: 'Tarefas com cliente',
+      icon: Clock,
+      cor: '#8b5cf6',
+      delta: 'Acompanhar',
+    },
+    {
+      label: 'Tarefas atrasadas',
+      valor: String(m.atrasadas),
+      sub: `${m.travadas} travadas`,
+      icon: AlertTriangle,
+      cor: '#ef4444',
+      delta: 'Gargalo',
+    },
+    {
+      label: 'SLA da equipe',
+      valor: `${m.slaEquipe}%`,
+      sub: `${m.concluidas} tarefas concluídas`,
+      icon: CheckCircle2,
+      cor: '#10b981',
+      delta: 'Performance',
+    },
+  ]
+
   return (
     <div>
       <PageHeader
@@ -154,7 +174,6 @@ export default function Dashboard() {
         }
       />
 
-      {/* KPIs */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
         {KPIS.map((k, i) => (
           <motion.div
@@ -184,9 +203,7 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Gráficos */}
       <div className="mt-4 grid gap-4 lg:grid-cols-3">
-        {/* MRR */}
         <div className="panel p-5 lg:col-span-2">
           <div className="flex items-center justify-between">
             <div>
@@ -196,20 +213,30 @@ export default function Dashboard() {
               <p className="text-xs text-ink-500">Últimos 6 meses · MRR</p>
             </div>
             <Badge cor="#10b981">
-              <ArrowUpRight size={12} /> +60% no período
+              <ArrowUpRight size={12} /> tendência de alta
             </Badge>
           </div>
           <div className="mt-4 h-56">
             <ResponsiveContainer>
-              <AreaChart data={mrrSerie}>
+              <AreaChart data={m.mrrSerie}>
                 <defs>
                   <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#b8943f" stopOpacity={0.5} />
                     <stop offset="100%" stopColor="#b8943f" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1d1d25" vertical={false} />
-                <XAxis dataKey="mes" stroke="#4a4a57" fontSize={11} tickLine={false} axisLine={false} />
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="#1d1d25"
+                  vertical={false}
+                />
+                <XAxis
+                  dataKey="mes"
+                  stroke="#4a4a57"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                />
                 <YAxis
                   stroke="#4a4a57"
                   fontSize={11}
@@ -230,7 +257,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Funil de fases */}
         <div className="panel p-5">
           <h3 className="font-display text-sm font-bold text-ink-100">
             Clientes por fase RUGIDO
@@ -238,7 +264,7 @@ export default function Dashboard() {
           <p className="text-xs text-ink-500">Distribuição operacional</p>
           <div className="mt-4 h-56">
             <ResponsiveContainer>
-              <BarChart data={porFase} layout="vertical" barSize={16}>
+              <BarChart data={m.porFase} layout="vertical" barSize={16}>
                 <XAxis type="number" hide />
                 <YAxis
                   type="category"
@@ -251,7 +277,7 @@ export default function Dashboard() {
                 />
                 <Tooltip content={<TooltipBox />} cursor={{ fill: '#15151b' }} />
                 <Bar dataKey="qtd" radius={[0, 6, 6, 0]}>
-                  {porFase.map((f) => (
+                  {m.porFase.map((f) => (
                     <Cell key={f.nome} fill={f.cor} />
                   ))}
                 </Bar>
@@ -261,18 +287,16 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Linha inferior */}
       <div className="mt-4 grid gap-4 lg:grid-cols-3">
-        {/* Clientes em risco */}
         <div className="panel p-5 lg:col-span-2">
           <div className="flex items-center justify-between">
             <h3 className="font-display text-sm font-bold text-ink-100">
               ⚠️ Clientes em risco · Health Score baixo
             </h3>
-            <Badge cor="#ef4444">{emRisco.length} requer atenção</Badge>
+            <Badge cor="#ef4444">{m.emRisco.length} requer atenção</Badge>
           </div>
           <div className="mt-3 divide-y divide-white/[0.05]">
-            {emRisco.map((c) => (
+            {m.emRisco.map((c) => (
               <Link
                 key={c.id}
                 to={`/clientes/${c.id}`}
@@ -292,7 +316,9 @@ export default function Dashboard() {
                     <span className="text-ink-500">Health</span>
                     <span
                       className="font-bold"
-                      style={{ color: c.healthScore < 50 ? '#ef4444' : '#f59e0b' }}
+                      style={{
+                        color: c.healthScore < 50 ? '#ef4444' : '#f59e0b',
+                      }}
                     >
                       {c.healthScore}
                     </span>
@@ -304,28 +330,32 @@ export default function Dashboard() {
                 </div>
               </Link>
             ))}
+            {m.emRisco.length === 0 && (
+              <p className="py-6 text-center text-sm text-ink-500">
+                Nenhum cliente em risco. 🎯
+              </p>
+            )}
           </div>
         </div>
 
-        {/* Produtividade da equipe */}
         <div className="panel p-5">
           <h3 className="font-display text-sm font-bold text-ink-100">
             Produtividade da equipe
           </h3>
           <p className="text-xs text-ink-500">% de tarefas concluídas</p>
           <div className="mt-3 space-y-3">
-            {produtividade.map((m) => (
-              <div key={m.id} className="flex items-center gap-3">
-                <Avatar nome={m.nome} size={32} />
+            {m.produtividade.map((mb) => (
+              <div key={mb.id} className="flex items-center gap-3">
+                <Avatar nome={mb.nome} size={32} />
                 <div className="min-w-0 flex-1">
                   <div className="flex justify-between text-xs">
                     <span className="truncate font-medium text-ink-100">
-                      {m.nome}
+                      {mb.nome}
                     </span>
-                    <span className="font-bold text-gold-300">{m.pct}%</span>
+                    <span className="font-bold text-gold-300">{mb.pct}%</span>
                   </div>
                   <div className="mt-1">
-                    <ProgressBar valor={m.pct} />
+                    <ProgressBar valor={mb.pct} />
                   </div>
                 </div>
               </div>
@@ -334,18 +364,20 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Aprovações pendentes */}
       <div className="panel mt-4 p-5">
         <div className="flex items-center justify-between">
           <h3 className="font-display text-sm font-bold text-ink-100">
             Aprovações recentes
           </h3>
-          <Link to="/aprovacoes" className="text-xs font-semibold text-gold-400 hover:text-gold-300">
+          <Link
+            to="/aprovacoes"
+            className="text-xs font-semibold text-gold-400 hover:text-gold-300"
+          >
             Ver todas →
           </Link>
         </div>
         <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {APROVACOES.slice(0, 6).map((a) => {
+          {aprovacoes.slice(0, 6).map((a) => {
             const cor =
               a.status === 'aprovado'
                 ? '#10b981'

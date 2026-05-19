@@ -2,8 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Plus, Search } from 'lucide-react'
-import { CLIENTES } from '@/data/mock'
-import { TAREFAS } from '@/data/mock'
+import { useData } from '@/lib/data'
 import { FASES_RUGIDO, faseById } from '@/data/rugido'
 import type { ClienteStatus } from '@/lib/types'
 import { brl, dataCurta } from '@/lib/format'
@@ -22,20 +21,21 @@ const STATUS_LABEL: Record<ClienteStatus, string> = {
   finalizado: 'Finalizado',
 }
 
-function progressoCliente(clienteId: string) {
-  const ts = TAREFAS.filter((t) => t.clienteId === clienteId)
-  if (!ts.length) return 0
-  return Math.round(
-    (ts.filter((t) => t.status === 'concluida').length / ts.length) * 100,
-  )
-}
-
 export default function Clientes() {
+  const { clientes, tarefas } = useData()
   const [busca, setBusca] = useState('')
   const [filtroFase, setFiltroFase] = useState<string>('todos')
   const [filtroStatus, setFiltroStatus] = useState<string>('todos')
 
-  const lista = CLIENTES.filter((c) => {
+  const progresso = (clienteId: string) => {
+    const ts = tarefas.filter((t) => t.clienteId === clienteId)
+    if (!ts.length) return 0
+    return Math.round(
+      (ts.filter((t) => t.status === 'concluida').length / ts.length) * 100,
+    )
+  }
+
+  const lista = clientes.filter((c) => {
     const okBusca =
       c.empresa.toLowerCase().includes(busca.toLowerCase()) ||
       c.nome.toLowerCase().includes(busca.toLowerCase())
@@ -48,7 +48,7 @@ export default function Clientes() {
     <div>
       <PageHeader
         titulo="Clientes"
-        subtitulo={`${CLIENTES.length} clientes na operação`}
+        subtitulo={`${clientes.length} clientes na operação`}
         acao={
           <button className="btn-gold">
             <Plus size={16} /> Novo cliente
@@ -56,7 +56,6 @@ export default function Clientes() {
         }
       />
 
-      {/* Filtros */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <div className="relative min-w-[220px] flex-1">
           <Search
@@ -96,11 +95,10 @@ export default function Clientes() {
         </select>
       </div>
 
-      {/* Grid de cards */}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {lista.map((c, i) => {
           const fase = faseById(c.faseAtual)
-          const prog = progressoCliente(c.id)
+          const prog = progresso(c.id)
           return (
             <motion.div
               key={c.id}
@@ -127,7 +125,6 @@ export default function Clientes() {
                   </Badge>
                 </div>
 
-                {/* Fase atual */}
                 <div className="mt-3 flex items-center gap-2 rounded-lg border border-white/[0.05] bg-ink-900 px-3 py-2">
                   <span className="text-base">{fase.simbolo}</span>
                   <div className="leading-tight">
@@ -143,7 +140,6 @@ export default function Clientes() {
                   </div>
                 </div>
 
-                {/* Progresso */}
                 <div className="mt-3">
                   <div className="mb-1 flex justify-between text-[11px]">
                     <span className="text-ink-500">Progresso operacional</span>
@@ -152,13 +148,13 @@ export default function Clientes() {
                   <ProgressBar valor={prog} cor={fase.cor} />
                 </div>
 
-                {/* Rodapé */}
                 <div className="mt-3 flex items-center justify-between border-t border-white/[0.05] pt-3 text-[11px]">
                   <span className="text-ink-500">
                     Entrada {dataCurta(c.dataEntrada)}
                   </span>
                   <span className="font-semibold text-ink-200">
-                    {brl(c.ticket)}<span className="text-ink-500">/mês</span>
+                    {brl(c.ticket)}
+                    <span className="text-ink-500">/mês</span>
                   </span>
                 </div>
               </Link>

@@ -110,7 +110,8 @@ create table if not exists rugido.aprovacoes (
   titulo      text not null,
   tipo        text not null,                     -- arte, copy, video, pagina...
   status      rugido.aprovacao_status not null default 'pendente',
-  token       text unique not null default encode(gen_random_bytes(8),'hex'),
+  token       text unique not null
+                default 'aprv-' || left(replace(gen_random_uuid()::text,'-',''),10),
   senha       text,
   validade    timestamptz,
   feedback    text,
@@ -199,3 +200,16 @@ end $$;
 -- Aprovações são públicas por token (página de aprovação do cliente):
 -- a leitura por token é feita via Edge Function com service_role,
 -- portanto não é necessária política anônima aqui.
+
+-- ── Grants para os papéis do Supabase ───────────────────────────────
+-- A RLS acima é quem realmente filtra; os grants apenas liberam o schema.
+grant usage on schema rugido to anon, authenticated, service_role;
+grant all on all tables in schema rugido
+  to authenticated, service_role;
+grant all on all sequences in schema rugido
+  to authenticated, service_role;
+grant select on all tables in schema rugido to anon;
+alter default privileges in schema rugido
+  grant all on tables to authenticated, service_role;
+alter default privileges in schema rugido
+  grant all on sequences to authenticated, service_role;

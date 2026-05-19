@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import RequireAuth from './components/RequireAuth'
+import { DataProvider } from './lib/data'
 import Layout from './components/Layout'
 import Login from './pages/Login'
 import Aprovar from './pages/Aprovar'
@@ -23,7 +24,9 @@ export default function App() {
       <Route
         element={
           <RequireAuth>
-            <Layout />
+            <DataProvider>
+              <Layout />
+            </DataProvider>
           </RequireAuth>
         }
       >

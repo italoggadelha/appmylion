@@ -9,7 +9,7 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core'
 import { MessageSquare, Paperclip } from 'lucide-react'
-import { TAREFAS, CLIENTES, clienteById } from '@/data/mock'
+import { useData } from '@/lib/data'
 import {
   STATUS_LABEL,
   STATUS_COR,
@@ -28,12 +28,12 @@ const COLUNAS: TarefaStatus[] = [
   'concluida',
 ]
 
-// ── Card arrastável ─────────────────────────────────────────────────
 function Card({ tarefa }: { tarefa: Tarefa }) {
+  const { clientePorId } = useData()
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({ id: tarefa.id })
   const fase = faseById(tarefa.fase)
-  const cliente = clienteById(tarefa.clienteId)
+  const cliente = clientePorId(tarefa.clienteId)
   const style = transform
     ? { transform: `translate3d(${transform.x}px,${transform.y}px,0)` }
     : undefined
@@ -86,7 +86,6 @@ function Card({ tarefa }: { tarefa: Tarefa }) {
   )
 }
 
-// ── Coluna droppable ────────────────────────────────────────────────
 function Coluna({
   status,
   tarefas,
@@ -126,7 +125,7 @@ function Coluna({
 }
 
 export default function Kanban() {
-  const [tarefas, setTarefas] = useState<Tarefa[]>(TAREFAS)
+  const { tarefas, clientes, moverTarefa } = useData()
   const [filtroCliente, setFiltroCliente] = useState('todos')
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -143,12 +142,7 @@ export default function Kanban() {
   function onDragEnd(e: DragEndEvent) {
     const novoStatus = e.over?.id as TarefaStatus | undefined
     if (!novoStatus || !COLUNAS.includes(novoStatus)) return
-    setTarefas((prev) =>
-      prev.map((t) =>
-        t.id === e.active.id ? { ...t, status: novoStatus } : t,
-      ),
-    )
-    // TODO: persistir status no Supabase
+    moverTarefa(e.active.id as string, novoStatus)
   }
 
   return (
@@ -163,7 +157,7 @@ export default function Kanban() {
             onChange={(e) => setFiltroCliente(e.target.value)}
           >
             <option value="todos">Todos os clientes</option>
-            {CLIENTES.map((c) => (
+            {clientes.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.empresa}
               </option>

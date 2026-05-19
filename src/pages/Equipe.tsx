@@ -1,5 +1,5 @@
 import { Check, Minus } from 'lucide-react'
-import { EQUIPE, TAREFAS } from '@/data/mock'
+import { useData } from '@/lib/data'
 import { PERFIL_LABEL, type Perfil } from '@/data/rugido'
 import { Avatar, Badge, PageHeader } from '@/components/ui'
 
@@ -24,6 +24,7 @@ const MATRIZ: Record<Perfil, boolean[]> = {
 }
 
 export default function Equipe() {
+  const { membros, tarefas } = useData()
   return (
     <div>
       <PageHeader
@@ -34,8 +35,8 @@ export default function Equipe() {
 
       {/* Membros */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {EQUIPE.map((m) => {
-          const minhas = TAREFAS.filter((t) => t.responsavelId === m.id)
+        {membros.map((m) => {
+          const minhas = tarefas.filter((t) => t.responsavelId === m.id)
           const ativas = minhas.filter((t) => t.status !== 'concluida').length
           return (
             <div key={m.id} className="panel panel-hover p-4">

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Copy, ExternalLink, Image, FileText, Video, Layout } from 'lucide-react'
-import { APROVACOES, clienteById } from '@/data/mock'
+import { useData } from '@/lib/data'
 import type { AprovacaoStatus } from '@/lib/types'
 import { dataCurta } from '@/lib/format'
 import { Avatar, Badge, PageHeader } from '@/components/ui'
@@ -26,11 +26,12 @@ const TIPO_ICON: Record<string, typeof Image> = {
 }
 
 export default function Aprovacoes() {
+  const { aprovacoes, clientePorId } = useData()
   const [filtro, setFiltro] = useState<string>('todos')
   const lista =
     filtro === 'todos'
-      ? APROVACOES
-      : APROVACOES.filter((a) => a.status === filtro)
+      ? aprovacoes
+      : aprovacoes.filter((a) => a.status === filtro)
 
   return (
     <div>
@@ -57,7 +58,7 @@ export default function Aprovacoes() {
 
       <div className="grid gap-3 md:grid-cols-2">
         {lista.map((a) => {
-          const cliente = clienteById(a.clienteId)
+          const cliente = clientePorId(a.clienteId)
           const Icon = TIPO_ICON[a.tipo] ?? FileText
           const link = `https://app.mylion.com.br/aprovar/${a.token}`
           return (

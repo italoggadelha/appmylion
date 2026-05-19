@@ -10,7 +10,7 @@ import {
   Send,
   ChevronRight,
 } from 'lucide-react'
-import { clienteById, tarefasDoCliente } from '@/data/mock'
+import { useData } from '@/lib/data'
 import {
   FASES_RUGIDO,
   faseById,
@@ -25,7 +25,8 @@ import { Avatar, Badge, ProgressRing, ProgressBar } from '@/components/ui'
 
 export default function ClienteDetalhe() {
   const { id } = useParams()
-  const cliente = clienteById(id ?? '')
+  const { clientePorId, tarefasDoCliente } = useData()
+  const cliente = clientePorId(id ?? '')
   const tarefas = cliente ? tarefasDoCliente(cliente.id) : []
   const faseAtualIdx = cliente
     ? FASES_RUGIDO.findIndex((f) => f.id === cliente.faseAtual)
