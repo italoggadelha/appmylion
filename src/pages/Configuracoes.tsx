@@ -8,7 +8,7 @@ import {
   useSensors,
   type DragEndEvent,
 } from '@dnd-kit/core'
-import { Plus, Trash2, GripVertical, Save, Tag, Layers, ShieldCheck, Check, Minus } from 'lucide-react'
+import { Plus, Trash2, GripVertical, Save, Tag, Layers, ShieldCheck, Check, Minus, Bot } from 'lucide-react'
 import { useData } from '@/lib/data'
 import {
   salvarStatus,
@@ -18,13 +18,15 @@ import {
   moverTemplateFase,
   salvarPerfil,
   excluirPerfil,
+  salvarAgenteExterno,
+  excluirAgenteExterno,
 } from '@/lib/repo'
-import type { PerfilAcesso } from '@/lib/types'
+import type { PerfilAcesso, AgenteExterno } from '@/lib/types'
 import { FASES_RUGIDO, FUNCOES, type FaseId } from '@/data/rugido'
 import type { StatusTarefa, TarefaTemplate } from '@/lib/types'
 import { PageHeader } from '@/components/ui'
 
-type Aba = 'status' | 'fases' | 'perfis'
+type Aba = 'status' | 'fases' | 'perfis' | 'agentes'
 
 const PERMS = [
   { k: 'visualizar', l: 'Visualizar' },
@@ -50,6 +52,7 @@ export default function Configuracoes() {
           { id: 'status' as Aba, label: 'Status de tarefa', icon: Tag },
           { id: 'fases' as Aba, label: 'Fases & Tarefas padrão', icon: Layers },
           { id: 'perfis' as Aba, label: 'Perfis de acesso', icon: ShieldCheck },
+          { id: 'agentes' as Aba, label: 'Agentes conectados', icon: Bot },
         ].map((t) => (
           <button
             key={t.id}
@@ -69,6 +72,107 @@ export default function Configuracoes() {
       {aba === 'status' && <AbaStatus />}
       {aba === 'fases' && <AbaFases />}
       {aba === 'perfis' && <AbaPerfis />}
+      {aba === 'agentes' && <AbaAgentes />}
+    </div>
+  )
+}
+
+// ════════════════════════════════════════════════════════════════════
+// ABA 4 — Agentes conectados (webhooks externos)
+// ════════════════════════════════════════════════════════════════════
+function AbaAgentes() {
+  const { agentesExternos, recarregar } = useData()
+  const [novo, setNovo] = useState({ nome: '', descricao: '', webhookUrl: '' })
+
+  async function criar() {
+    if (!novo.nome.trim() || !novo.webhookUrl.trim()) return
+    await salvarAgenteExterno(novo)
+    setNovo({ nome: '', descricao: '', webhookUrl: '' })
+    await recarregar()
+  }
+  async function remover(id: string) {
+    if (!confirm('Remover este agente?')) return
+    await excluirAgenteExterno(id)
+    await recarregar()
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="panel p-4 text-xs leading-relaxed text-ink-400">
+        <span className="font-semibold text-ink-200">Como funciona:</span>{' '}
+        cadastre o webhook do seu agente (n8n, Make, API própria…). Numa tarefa,
+        clique em <b>Executar agente</b>: o sistema envia o contexto da tarefa e
+        o agente deve responder em JSON{' '}
+        <code className="text-gold-300">
+          {'{ tipo: "html|imagem|video|texto", titulo, conteudo }'}
+        </code>
+        . O retorno entra como anexo da tarefa.
+      </div>
+
+      <div className="panel overflow-hidden">
+        {agentesExternos.length === 0 && (
+          <div className="p-6 text-center text-sm text-ink-500">
+            Nenhum agente conectado ainda.
+          </div>
+        )}
+        {agentesExternos.map((ag: AgenteExterno) => (
+          <div
+            key={ag.id}
+            className="flex items-center gap-3 border-b border-white/[0.04] p-3.5 last:border-0"
+          >
+            <div className="grid h-9 w-9 place-items-center rounded-lg bg-gold-500/15 text-gold-300">
+              <Bot size={17} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-semibold text-ink-100">
+                {ag.nome}
+              </div>
+              <div className="truncate font-mono text-[11px] text-ink-500">
+                {ag.webhookUrl}
+              </div>
+            </div>
+            <button
+              onClick={() => remover(ag.id)}
+              className="grid h-8 w-8 place-items-center rounded-lg text-ink-500 hover:text-red-400"
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <div className="panel space-y-3 p-5">
+        <h3 className="font-display text-sm font-bold text-ink-100">
+          Conectar novo agente
+        </h3>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <input
+            className="input"
+            placeholder="Nome do agente"
+            value={novo.nome}
+            onChange={(e) => setNovo((p) => ({ ...p, nome: e.target.value }))}
+          />
+          <input
+            className="input"
+            placeholder="Descrição (opcional)"
+            value={novo.descricao}
+            onChange={(e) =>
+              setNovo((p) => ({ ...p, descricao: e.target.value }))
+            }
+          />
+        </div>
+        <input
+          className="input"
+          placeholder="URL do webhook (https://…)"
+          value={novo.webhookUrl}
+          onChange={(e) =>
+            setNovo((p) => ({ ...p, webhookUrl: e.target.value }))
+          }
+        />
+        <button onClick={criar} className="btn-gold">
+          <Plus size={15} /> Conectar agente
+        </button>
+      </div>
     </div>
   )
 }

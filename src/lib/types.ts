@@ -90,7 +90,7 @@ export interface TarefaTemplate {
 }
 
 export type AnexoCategoria = 'aprovacao' | 'ideia' | 'apoio'
-export type AnexoTipo = 'texto' | 'link' | 'arquivo' | 'imagem'
+export type AnexoTipo = 'texto' | 'link' | 'arquivo' | 'imagem' | 'html' | 'video'
 
 export interface Anexo {
   id: string
@@ -99,7 +99,15 @@ export interface Anexo {
   tipo: AnexoTipo
   titulo: string
   conteudo?: string
+  aprovado?: boolean
   criadoEm: string
+}
+
+export interface AgenteExterno {
+  id: string
+  nome: string
+  descricao?: string
+  webhookUrl: string
 }
 
 export interface PerfilAcesso {

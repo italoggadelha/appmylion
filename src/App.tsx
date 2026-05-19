@@ -10,6 +10,7 @@ const Aprovar = lazy(() => import('./pages/Aprovar'))
 const RelatorioPublico = lazy(() => import('./pages/RelatorioPublico'))
 const FormularioPublico = lazy(() => import('./pages/FormularioPublico'))
 const Formularios = lazy(() => import('./pages/Formularios'))
+const PreviewAnexo = lazy(() => import('./pages/PreviewAnexo'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const Clientes = lazy(() => import('./pages/Clientes'))
 const ClienteDetalhe = lazy(() => import('./pages/ClienteDetalhe'))
@@ -39,6 +40,16 @@ export default function App() {
         <Route path="/aprovar/:token" element={<Aprovar />} />
         <Route path="/relatorio/:token" element={<RelatorioPublico />} />
         <Route path="/formulario/:token" element={<FormularioPublico />} />
+
+        {/* Protegida, tela cheia (visualizador de entrega) */}
+        <Route
+          path="/preview/:id"
+          element={
+            <RequireAuth>
+              <PreviewAnexo />
+            </RequireAuth>
+          }
+        />
 
         {/* Protegidas */}
         <Route

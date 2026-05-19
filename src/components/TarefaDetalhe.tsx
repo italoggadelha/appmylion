@@ -20,6 +20,7 @@ import {
   Square,
   Clock,
   Trophy,
+  FileCode,
 } from 'lucide-react'
 import { useData } from '@/lib/data'
 import { faseById, PRIORIDADE_COR } from '@/data/rugido'
@@ -29,6 +30,7 @@ import {
   excluirAnexo,
   uploadArquivo,
   criarAprovacao,
+  executarAgente,
 } from '@/lib/repo'
 import { SUPABASE_PRONTO } from '@/lib/supabase'
 import type { Anexo, AnexoCategoria, AnexoTipo, Tarefa } from '@/lib/types'
@@ -62,11 +64,14 @@ export default function TarefaDetalhe() {
     definirTempo,
     membroAtual,
     aprovacoes,
+    agentesExternos,
   } = useData()
   const tarefa = tarefas.find((t) => t.id === tarefaAberta)
   const [anexos, setAnexos] = useState<Anexo[]>([])
   const [editar, setEditar] = useState(false)
   const [linkAprov, setLinkAprov] = useState('')
+  const [agenteSel, setAgenteSel] = useState('')
+  const [execAgente, setExecAgente] = useState(false)
 
   const recarregarAnexos = useCallback(async () => {
     if (!tarefa) return
@@ -88,6 +93,28 @@ export default function TarefaDetalhe() {
   const si = statusInfo(tarefa.status)
   const subFeitas = tarefa.subtarefas.filter((s) => s.concluida).length
   const aprovDaTarefa = aprovacoes.filter((a) => a.tarefaId === tarefa.id)
+
+  async function rodarAgente() {
+    if (!tarefa || !agenteSel) return
+    if (!SUPABASE_PRONTO) return alert('Disponível com o backend conectado.')
+    setExecAgente(true)
+    try {
+      const r = await executarAgente(tarefa.id, agenteSel)
+      if (r?.ok) {
+        await recarregarAnexos()
+      } else {
+        alert(
+          'O agente não retornou um resultado válido.\n' +
+            (r?.erro ?? '') +
+            (r?.detalhe ? '\n' + JSON.stringify(r.detalhe).slice(0, 200) : ''),
+        )
+      }
+    } catch {
+      alert('Falha ao executar o agente.')
+    } finally {
+      setExecAgente(false)
+    }
+  }
 
   async function enviarAprovacao() {
     if (!tarefa) return
@@ -250,6 +277,41 @@ export default function TarefaDetalhe() {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Agente conectado */}
+              <div className="rounded-xl border border-gold-500/20 bg-gold-500/[0.04] p-4">
+                <div className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-gold-300">
+                  <Send size={12} /> Executar agente nesta tarefa
+                </div>
+                {agentesExternos.length === 0 ? (
+                  <p className="text-xs text-ink-500">
+                    Nenhum agente conectado. Configure em Configurações →
+                    Agentes conectados.
+                  </p>
+                ) : (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <select
+                      className="input flex-1"
+                      value={agenteSel}
+                      onChange={(e) => setAgenteSel(e.target.value)}
+                    >
+                      <option value="">Escolha o agente…</option>
+                      {agentesExternos.map((ag) => (
+                        <option key={ag.id} value={ag.id}>
+                          {ag.nome}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={rodarAgente}
+                      disabled={!agenteSel || execAgente}
+                      className="btn-gold py-2 text-xs"
+                    >
+                      {execAgente ? 'Executando…' : 'Executar'}
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Anexos por categoria */}
@@ -453,14 +515,29 @@ function SecaoAnexos({
               {a.tipo === 'imagem' && <ImageIcon size={13} className="text-ink-500" />}
               {a.tipo === 'arquivo' && <Upload size={13} className="text-ink-500" />}
               {a.tipo === 'texto' && <FileText size={13} className="text-ink-500" />}
+              {a.tipo === 'html' && <FileCode size={13} className="text-gold-400" />}
               <div className="min-w-0 flex-1">
-                <div className="truncate text-xs font-medium text-ink-100">
-                  {a.titulo}
+                <div className="flex items-center gap-1.5">
+                  <span className="truncate text-xs font-medium text-ink-100">
+                    {a.titulo}
+                  </span>
+                  {a.aprovado && (
+                    <Check size={12} className="shrink-0 text-emerald-400" />
+                  )}
                 </div>
                 {a.tipo === 'texto' ? (
                   <div className="truncate text-[11px] text-ink-500">
                     {a.conteudo}
                   </div>
+                ) : a.tipo === 'html' ? (
+                  <a
+                    href={`/preview/${a.id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[11px] font-semibold text-gold-400 hover:underline"
+                  >
+                    Abrir página para ver e aprovar →
+                  </a>
                 ) : (
                   <a
                     href={a.conteudo}
@@ -472,6 +549,19 @@ function SecaoAnexos({
                   </a>
                 )}
               </div>
+              {(a.tipo === 'imagem' || a.tipo === 'video') && a.conteudo && (
+                <a href={a.conteudo} target="_blank" rel="noreferrer">
+                  {a.tipo === 'imagem' ? (
+                    <img
+                      src={a.conteudo}
+                      alt=""
+                      className="h-9 w-9 rounded object-cover"
+                    />
+                  ) : (
+                    <span className="text-[11px] text-gold-400">ver vídeo</span>
+                  )}
+                </a>
+              )}
               <button
                 onClick={() => remover(a.id)}
                 className="text-ink-500 hover:text-red-400"
@@ -486,19 +576,21 @@ function SecaoAnexos({
       {adicionando && (
         <div className="mt-2 space-y-2 rounded-lg border border-white/[0.06] bg-ink-850 p-2.5">
           <div className="flex gap-1">
-            {(['texto', 'link', 'arquivo', 'imagem'] as AnexoTipo[]).map((t) => (
-              <button
-                key={t}
-                onClick={() => setTipo(t)}
-                className={`flex-1 rounded-md px-1 py-1 text-[10px] font-semibold capitalize ${
-                  tipo === t
-                    ? 'bg-gold-500/15 text-gold-200'
-                    : 'bg-ink-800 text-ink-400'
-                }`}
-              >
-                {t}
-              </button>
-            ))}
+            {(['texto', 'link', 'arquivo', 'imagem', 'html'] as AnexoTipo[]).map(
+              (t) => (
+                <button
+                  key={t}
+                  onClick={() => setTipo(t)}
+                  className={`flex-1 rounded-md px-1 py-1 text-[10px] font-semibold capitalize ${
+                    tipo === t
+                      ? 'bg-gold-500/15 text-gold-200'
+                      : 'bg-ink-800 text-ink-400'
+                  }`}
+                >
+                  {t}
+                </button>
+              ),
+            )}
           </div>
           <input
             className="input py-1.5 text-xs"
@@ -506,10 +598,14 @@ function SecaoAnexos({
             value={titulo}
             onChange={(e) => setTitulo(e.target.value)}
           />
-          {tipo === 'texto' && (
+          {(tipo === 'texto' || tipo === 'html') && (
             <textarea
               className="input min-h-[60px] py-1.5 text-xs"
-              placeholder="Escreva o conteúdo / a ideia…"
+              placeholder={
+                tipo === 'html'
+                  ? 'Cole o código HTML…'
+                  : 'Escreva o conteúdo / a ideia…'
+              }
               value={conteudo}
               onChange={(e) => setConteudo(e.target.value)}
             />
@@ -530,7 +626,7 @@ function SecaoAnexos({
               className="text-xs text-ink-400 file:mr-2 file:rounded-md file:border-0 file:bg-ink-700 file:px-2 file:py-1 file:text-ink-200"
             />
           )}
-          {(tipo === 'texto' || tipo === 'link') && (
+          {(tipo === 'texto' || tipo === 'link' || tipo === 'html') && (
             <button
               onClick={() => adicionar()}
               disabled={salvando || !titulo.trim()}

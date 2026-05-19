@@ -72,6 +72,7 @@ const VAZIO: Snapshot = {
   fases: [],
   templates: [],
   perfis: [],
+  agentesExternos: [],
 }
 
 export function DataProvider({ children }: { children: ReactNode }) {

@@ -10,6 +10,7 @@ import type {
   TarefaTemplate,
   Anexo,
   PerfilAcesso,
+  AgenteExterno,
 } from './types'
 import { FASES_RUGIDO, type FaseId } from '@/data/rugido'
 import * as mock from '@/data/mock'
@@ -118,6 +119,7 @@ export interface Snapshot {
   fases: FaseConfig[]
   templates: TarefaTemplate[]
   perfis: PerfilAcesso[]
+  agentesExternos: AgenteExterno[]
 }
 
 export async function carregarTudo(): Promise<Snapshot> {
@@ -132,10 +134,11 @@ export async function carregarTudo(): Promise<Snapshot> {
       fases: FASES_PADRAO,
       templates: [],
       perfis: [],
+      agentesExternos: [],
     }
   }
 
-  const [mRes, cRes, tRes, aRes, auRes, sRes, fRes, tpRes, pRes] =
+  const [mRes, cRes, tRes, aRes, auRes, sRes, fRes, tpRes, pRes, agRes] =
     await Promise.all([
       supabase.from('membros').select('*').order('email'),
       supabase.from('clientes').select('*').order('empresa'),
@@ -146,11 +149,12 @@ export async function carregarTudo(): Promise<Snapshot> {
       supabase.from('fase_config').select('*').order('ordem'),
       supabase.from('tarefa_templates').select('*').order('ordem'),
       supabase.from('perfis_acesso').select('*').order('ordem'),
+      supabase.from('agentes_externos').select('*').order('criado_em'),
     ])
 
   const erro =
     mRes.error || cRes.error || tRes.error || aRes.error || auRes.error ||
-    sRes.error || fRes.error || tpRes.error || pRes.error
+    sRes.error || fRes.error || tpRes.error || pRes.error || agRes.error
   if (erro) throw erro
 
   const membros = (mRes.data ?? []).map(mapMembro)
@@ -170,7 +174,65 @@ export async function carregarTudo(): Promise<Snapshot> {
       : FASES_PADRAO,
     templates: (tpRes.data ?? []) as TarefaTemplate[],
     perfis: (pRes.data ?? []) as PerfilAcesso[],
+    agentesExternos: (agRes.data ?? []).map((r: any) => ({
+      id: r.id,
+      nome: r.nome,
+      descricao: r.descricao ?? undefined,
+      webhookUrl: r.webhook_url,
+    })),
   }
+}
+
+// ── Agentes externos (webhooks conectados às tarefas) ───────────────
+export async function salvarAgenteExterno(
+  a: { id?: string; nome: string; descricao?: string; webhookUrl: string },
+) {
+  if (!SUPABASE_PRONTO) throw new Error('Supabase não configurado')
+  const campos = {
+    nome: a.nome,
+    descricao: a.descricao ?? null,
+    webhook_url: a.webhookUrl,
+  }
+  if (a.id) {
+    const { error } = await supabase
+      .from('agentes_externos')
+      .update(campos)
+      .eq('id', a.id)
+    if (error) throw error
+  } else {
+    const { error } = await supabase.from('agentes_externos').insert(campos)
+    if (error) throw error
+  }
+}
+
+export async function excluirAgenteExterno(id: string) {
+  if (!SUPABASE_PRONTO) return
+  const { error } = await supabase.from('agentes_externos').delete().eq('id', id)
+  if (error) throw error
+}
+
+export async function executarAgente(tarefaId: string, agenteId: string) {
+  if (!SUPABASE_PRONTO) throw new Error('Supabase não configurado')
+  const { data, error } = await supabase.functions.invoke('executar-agente', {
+    body: { tarefaId, agenteId },
+  })
+  if (error) throw error
+  return data as { ok?: boolean; erro?: string; detalhe?: any }
+}
+
+export async function aprovarAnexo(id: string, aprovado: boolean) {
+  if (!SUPABASE_PRONTO) return
+  const { error } = await supabase
+    .from('anexos')
+    .update({ aprovado })
+    .eq('id', id)
+  if (error) throw error
+}
+
+export async function getAnexo(id: string): Promise<Anexo | null> {
+  if (!SUPABASE_PRONTO) return null
+  const { data } = await supabase.from('anexos').select('*').eq('id', id).maybeSingle()
+  return data ? mapAnexo(data) : null
 }
 
 export async function salvarPerfil(
@@ -412,6 +474,7 @@ const mapAnexo = (r: any): Anexo => ({
   tipo: r.tipo,
   titulo: r.titulo,
   conteudo: r.conteudo ?? undefined,
+  aprovado: !!r.aprovado,
   criadoEm: r.criado_em,
 })
 
