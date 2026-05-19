@@ -11,6 +11,7 @@ const RelatorioPublico = lazy(() => import('./pages/RelatorioPublico'))
 const FormularioPublico = lazy(() => import('./pages/FormularioPublico'))
 const Formularios = lazy(() => import('./pages/Formularios'))
 const PreviewAnexo = lazy(() => import('./pages/PreviewAnexo'))
+const Chat = lazy(() => import('./pages/Chat'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const Clientes = lazy(() => import('./pages/Clientes'))
 const ClienteDetalhe = lazy(() => import('./pages/ClienteDetalhe'))
@@ -67,6 +68,7 @@ export default function App() {
           <Route path="kanban" element={<Navigate to="/tarefas" replace />} />
           <Route path="aprovacoes" element={<Aprovacoes />} />
           <Route path="agentes" element={<AgentesIA />} />
+          <Route path="chat" element={<Chat />} />
           <Route path="formularios" element={<Formularios />} />
           <Route path="equipe" element={<Equipe />} />
           <Route path="automacoes" element={<Automacoes />} />

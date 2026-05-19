@@ -8,7 +8,9 @@ import {
   useSensors,
   type DragEndEvent,
 } from '@dnd-kit/core'
-import { Plus, Trash2, GripVertical, Save, Tag, Layers, ShieldCheck, Check, Minus, Bot } from 'lucide-react'
+import { Plus, Trash2, GripVertical, Save, Tag, Layers, ShieldCheck, Check, Minus, Bot, MessageCircle, Bell } from 'lucide-react'
+import AbaWhatsApp from '@/components/AbaWhatsApp'
+import AbaNotificacoes from '@/components/AbaNotificacoes'
 import { useData } from '@/lib/data'
 import {
   salvarStatus,
@@ -26,7 +28,7 @@ import { FASES_RUGIDO, FUNCOES, type FaseId } from '@/data/rugido'
 import type { StatusTarefa, TarefaTemplate } from '@/lib/types'
 import { PageHeader } from '@/components/ui'
 
-type Aba = 'status' | 'fases' | 'perfis' | 'agentes'
+type Aba = 'status' | 'fases' | 'perfis' | 'agentes' | 'integracoes' | 'notificacoes'
 
 const PERMS = [
   { k: 'visualizar', l: 'Visualizar' },
@@ -53,6 +55,8 @@ export default function Configuracoes() {
           { id: 'fases' as Aba, label: 'Fases & Tarefas padrão', icon: Layers },
           { id: 'perfis' as Aba, label: 'Perfis de acesso', icon: ShieldCheck },
           { id: 'agentes' as Aba, label: 'Agentes conectados', icon: Bot },
+          { id: 'integracoes' as Aba, label: 'Integrações', icon: MessageCircle },
+          { id: 'notificacoes' as Aba, label: 'Notificações', icon: Bell },
         ].map((t) => (
           <button
             key={t.id}
@@ -73,6 +77,8 @@ export default function Configuracoes() {
       {aba === 'fases' && <AbaFases />}
       {aba === 'perfis' && <AbaPerfis />}
       {aba === 'agentes' && <AbaAgentes />}
+      {aba === 'integracoes' && <AbaWhatsApp />}
+      {aba === 'notificacoes' && <AbaNotificacoes />}
     </div>
   )
 }

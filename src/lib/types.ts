@@ -62,6 +62,50 @@ export interface Tarefa {
   aprovacao?: string
 }
 
+export interface Conversa {
+  id: string
+  clienteId?: string
+  titulo?: string
+  tipo: 'cliente' | 'grupo' | 'interno'
+  canal: 'interno' | 'whatsapp'
+  status: string
+  ultimaMsg?: string
+  ultimaEm: string
+}
+
+export interface Mensagem {
+  id: string
+  conversaId: string
+  autorId?: string
+  autorNome: string
+  autorFuncao?: string
+  doCliente: boolean
+  tipo: string
+  conteudo?: string
+  url?: string
+  criadoEm: string
+}
+
+export interface WppConexao {
+  status: 'desconectado' | 'conectando' | 'conectado'
+  numero?: string
+  nomeConta?: string
+  ultimaSync?: string
+}
+
+export interface NotifConfig {
+  id: string
+  chave: string
+  nome: string
+  gatilho: string
+  canalWhatsapp: boolean
+  canalEmail: boolean
+  canalInterno: boolean
+  mensagem?: string
+  ativa: boolean
+  custom: boolean
+}
+
 export interface Documento {
   id: string
   clienteId: string
