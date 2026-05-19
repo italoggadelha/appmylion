@@ -8,7 +8,7 @@ import {
   useSensors,
   type DragEndEvent,
 } from '@dnd-kit/core'
-import { Plus, Trash2, GripVertical, Save, Tag, Layers } from 'lucide-react'
+import { Plus, Trash2, GripVertical, Save, Tag, Layers, ShieldCheck, Check, Minus } from 'lucide-react'
 import { useData } from '@/lib/data'
 import {
   salvarStatus,
@@ -16,12 +16,24 @@ import {
   salvarTemplate,
   excluirTemplate,
   moverTemplateFase,
+  salvarPerfil,
+  excluirPerfil,
 } from '@/lib/repo'
+import type { PerfilAcesso } from '@/lib/types'
 import { FASES_RUGIDO, FUNCOES, type FaseId } from '@/data/rugido'
 import type { StatusTarefa, TarefaTemplate } from '@/lib/types'
 import { PageHeader } from '@/components/ui'
 
-type Aba = 'status' | 'fases'
+type Aba = 'status' | 'fases' | 'perfis'
+
+const PERMS = [
+  { k: 'visualizar', l: 'Visualizar' },
+  { k: 'editar', l: 'Editar' },
+  { k: 'aprovar', l: 'Aprovar' },
+  { k: 'financeiro', l: 'Financeiro' },
+  { k: 'ia', l: 'IA' },
+  { k: 'relatorios', l: 'Relatórios' },
+]
 
 export default function Configuracoes() {
   const [aba, setAba] = useState<Aba>('status')
@@ -37,6 +49,7 @@ export default function Configuracoes() {
         {[
           { id: 'status' as Aba, label: 'Status de tarefa', icon: Tag },
           { id: 'fases' as Aba, label: 'Fases & Tarefas padrão', icon: Layers },
+          { id: 'perfis' as Aba, label: 'Perfis de acesso', icon: ShieldCheck },
         ].map((t) => (
           <button
             key={t.id}
@@ -53,8 +66,134 @@ export default function Configuracoes() {
         ))}
       </div>
 
-      {aba === 'status' ? <AbaStatus /> : <AbaFases />}
+      {aba === 'status' && <AbaStatus />}
+      {aba === 'fases' && <AbaFases />}
+      {aba === 'perfis' && <AbaPerfis />}
     </div>
+  )
+}
+
+// ════════════════════════════════════════════════════════════════════
+// ABA 3 — Perfis de acesso (matriz de permissões customizável)
+// ════════════════════════════════════════════════════════════════════
+function AbaPerfis() {
+  const { perfis, recarregar } = useData()
+  const [novoNome, setNovoNome] = useState('')
+
+  async function criar() {
+    if (!novoNome.trim()) return
+    await salvarPerfil({
+      nome: novoNome,
+      permissoes: { visualizar: true, editar: false, aprovar: false, financeiro: false, ia: false, relatorios: false },
+    })
+    setNovoNome('')
+    await recarregar()
+  }
+
+  return (
+    <div className="panel overflow-hidden">
+      <div className="border-b border-white/[0.06] p-4">
+        <h3 className="font-display text-sm font-bold text-ink-100">
+          Perfis e permissões
+        </h3>
+        <p className="text-xs text-ink-500">
+          Clique nas células para liberar ou bloquear cada permissão.
+        </p>
+      </div>
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-[11px] uppercase tracking-wide text-ink-500">
+            <th className="px-4 py-2.5 text-left font-semibold">Perfil</th>
+            {PERMS.map((p) => (
+              <th key={p.k} className="px-2 py-2.5 text-center font-semibold">
+                {p.l}
+              </th>
+            ))}
+            <th className="px-2" />
+          </tr>
+        </thead>
+        <tbody>
+          {perfis.map((perfil) => (
+            <LinhaPerfil key={perfil.id} perfil={perfil} onMudou={recarregar} />
+          ))}
+        </tbody>
+      </table>
+      <div className="flex items-center gap-2 border-t border-white/[0.06] p-4">
+        <input
+          className="input flex-1"
+          placeholder="Nome do novo perfil…"
+          value={novoNome}
+          onChange={(e) => setNovoNome(e.target.value)}
+        />
+        <button onClick={criar} className="btn-gold">
+          <Plus size={15} /> Criar perfil
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function LinhaPerfil({
+  perfil,
+  onMudou,
+}: {
+  perfil: PerfilAcesso
+  onMudou: () => void
+}) {
+  const [perms, setPerms] = useState<Record<string, boolean>>(perfil.permissoes)
+  const mudou = JSON.stringify(perms) !== JSON.stringify(perfil.permissoes)
+  const fixo = ['ceo', 'gestor', 'coordenador', 'operacional', 'freelancer', 'cliente'].includes(
+    perfil.chave,
+  )
+
+  async function salvar() {
+    await salvarPerfil({ id: perfil.id, nome: perfil.nome, permissoes: perms })
+    onMudou()
+  }
+  async function remover() {
+    if (!confirm(`Remover o perfil "${perfil.nome}"?`)) return
+    await excluirPerfil(perfil.id)
+    onMudou()
+  }
+
+  return (
+    <tr className="border-t border-white/[0.04] hover:bg-ink-800/40">
+      <td className="px-4 py-2.5 font-medium text-ink-100">{perfil.nome}</td>
+      {PERMS.map((p) => (
+        <td key={p.k} className="px-2 py-2.5 text-center">
+          <button
+            onClick={() => setPerms((x) => ({ ...x, [p.k]: !x[p.k] }))}
+            className="mx-auto block"
+          >
+            {perms[p.k] ? (
+              <Check size={16} className="text-emerald-400" />
+            ) : (
+              <Minus size={16} className="text-ink-600" />
+            )}
+          </button>
+        </td>
+      ))}
+      <td className="px-2 py-2.5">
+        <div className="flex items-center gap-1">
+          {mudou && (
+            <button
+              onClick={salvar}
+              className="btn-gold px-2 py-1 text-[11px]"
+            >
+              <Save size={12} />
+            </button>
+          )}
+          {!fixo && (
+            <button
+              onClick={remover}
+              className="grid h-7 w-7 place-items-center rounded-lg text-ink-500 hover:text-red-400"
+            >
+              <Trash2 size={13} />
+            </button>
+          )}
+        </div>
+      </td>
+    </tr>
   )
 }
 

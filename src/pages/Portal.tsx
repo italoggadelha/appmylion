@@ -1,7 +1,12 @@
 import { useState, useEffect } from 'react'
-import { Copy, ExternalLink, Save, Globe, BarChart3 } from 'lucide-react'
+import { Copy, ExternalLink, Save, Globe, BarChart3, Plug, RefreshCw } from 'lucide-react'
 import { useData } from '@/lib/data'
-import { getRelatorioCliente, salvarRelatorio, type RelatorioTrafego } from '@/lib/repo'
+import {
+  getRelatorioCliente,
+  salvarRelatorio,
+  sincronizarMeta,
+  type RelatorioTrafego,
+} from '@/lib/repo'
 import { SUPABASE_PRONTO } from '@/lib/supabase'
 import { Avatar, Badge, PageHeader } from '@/components/ui'
 
@@ -22,6 +27,7 @@ export default function Portal() {
   const [rel, setRel] = useState<RelatorioTrafego | null>(null)
   const [carregando, setCarregando] = useState(false)
   const [salvando, setSalvando] = useState(false)
+  const [sincronizando, setSincronizando] = useState(false)
   const [form, setForm] = useState({
     periodo: 'Maio 2026',
     senha: 'mylion',
@@ -29,6 +35,8 @@ export default function Portal() {
     metricas: {} as Record<string, string>,
     observacoes: '',
     criativos: [] as { nome: string; resultado: string }[],
+    metaToken: '',
+    metaAdAccount: '',
   })
 
   useEffect(() => {
@@ -49,6 +57,8 @@ export default function Portal() {
             criativos: Array.isArray(r.metricas.criativos)
               ? r.metricas.criativos
               : [],
+            metaToken: r.metaToken ?? '',
+            metaAdAccount: r.metaAdAccount ?? '',
           })
         } else {
           setForm({
@@ -58,6 +68,8 @@ export default function Portal() {
             metricas: {},
             observacoes: '',
             criativos: [],
+            metaToken: '',
+            metaAdAccount: '',
           })
         }
       })
@@ -80,13 +92,55 @@ export default function Portal() {
         senha: form.senha,
         publicado: form.publicado,
         metricas,
-      })
+        meta_token: form.metaToken || null,
+        meta_ad_account: form.metaAdAccount || null,
+      } as any)
       setRel(r)
       alert('Relatório salvo.')
     } catch {
       alert('Falha ao salvar.')
     } finally {
       setSalvando(false)
+    }
+  }
+
+  async function sincronizar() {
+    if (!sel || !SUPABASE_PRONTO) return
+    if (!form.metaToken || !form.metaAdAccount) {
+      alert('Preencha o token e a conta de anúncios da Meta.')
+      return
+    }
+    setSincronizando(true)
+    try {
+      // persiste a conexão antes de sincronizar
+      await salvarRelatorio(sel, {
+        meta_token: form.metaToken,
+        meta_ad_account: form.metaAdAccount,
+      } as any)
+      const res: any = await sincronizarMeta(sel)
+      if (res?.erro) {
+        alert(
+          res.erro === 'nao_configurado'
+            ? 'Configure o token e a conta de anúncios.'
+            : 'Erro da Meta: ' + (res.detalhe || res.erro),
+        )
+        return
+      }
+      setForm((f) => ({
+        ...f,
+        metricas: Object.fromEntries(
+          CAMPOS_METRICA.map((c) => [
+            c.k,
+            String(res.metricas?.[c.k] ?? f.metricas[c.k] ?? ''),
+          ]),
+        ),
+        criativos: res.criativos?.length ? res.criativos : f.criativos,
+      }))
+      alert('Métricas sincronizadas da Meta Ads. Revise e clique em Salvar.')
+    } catch {
+      alert('Falha ao sincronizar com a Meta.')
+    } finally {
+      setSincronizando(false)
     }
   }
 
@@ -191,6 +245,52 @@ export default function Portal() {
                 />
                 Publicado (visível para o cliente)
               </label>
+            </div>
+
+            {/* Conexão Meta Ads */}
+            <div className="panel p-5">
+              <h3 className="flex items-center gap-2 font-display text-sm font-bold text-ink-100">
+                <Plug size={16} className="text-fase-demanda" />
+                Conexão Meta Ads
+              </h3>
+              <p className="mt-0.5 text-xs text-ink-500">
+                Configure o acesso da Meta deste cliente para puxar as métricas
+                automaticamente.
+              </p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <Campo label="Token de acesso da Meta">
+                  <input
+                    type="password"
+                    className="input"
+                    placeholder="EAAB…"
+                    value={form.metaToken}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, metaToken: e.target.value }))
+                    }
+                  />
+                </Campo>
+                <Campo label="ID da conta de anúncios">
+                  <input
+                    className="input"
+                    placeholder="act_1234567890"
+                    value={form.metaAdAccount}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, metaAdAccount: e.target.value }))
+                    }
+                  />
+                </Campo>
+              </div>
+              <button
+                onClick={sincronizar}
+                disabled={sincronizando}
+                className="btn-ghost mt-3"
+              >
+                <RefreshCw
+                  size={14}
+                  className={sincronizando ? 'animate-spin' : ''}
+                />
+                {sincronizando ? 'Sincronizando…' : 'Sincronizar com a Meta Ads'}
+              </button>
             </div>
 
             {/* Métricas */}

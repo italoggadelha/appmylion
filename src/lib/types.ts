@@ -102,6 +102,14 @@ export interface Anexo {
   criadoEm: string
 }
 
+export interface PerfilAcesso {
+  id: string
+  chave: string
+  nome: string
+  permissoes: Record<string, boolean>
+  ordem: number
+}
+
 export interface Automacao {
   id: string
   chave: string

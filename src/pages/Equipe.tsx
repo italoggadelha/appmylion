@@ -1,33 +1,27 @@
 import { useState } from 'react'
-import { Check, Minus } from 'lucide-react'
+import { Check, Minus, Settings } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { useData } from '@/lib/data'
-import { PERFIL_LABEL, type Perfil } from '@/data/rugido'
 import { Avatar, Badge, PageHeader } from '@/components/ui'
 import ConvidarMembroModal from '@/components/ConvidarMembroModal'
 
-const PERFIL_COR: Record<Perfil, string> = {
-  ceo: '#b8943f',
-  gestor: '#8b5cf6',
-  coordenador: '#5b8def',
-  operacional: '#10b981',
-  freelancer: '#06b6d4',
-  cliente: '#4a4a57',
-}
-
-// Matriz de permissões por perfil
-const PERMISSOES = ['Visualizar', 'Editar', 'Aprovar', 'Financeiro', 'IA', 'Relatórios']
-const MATRIZ: Record<Perfil, boolean[]> = {
-  ceo: [true, true, true, true, true, true],
-  gestor: [true, true, true, true, true, true],
-  coordenador: [true, true, true, false, true, true],
-  operacional: [true, true, false, false, true, false],
-  freelancer: [true, true, false, false, false, false],
-  cliente: [true, false, true, false, false, false],
-}
+const PERMS = [
+  { k: 'visualizar', l: 'Visualizar' },
+  { k: 'editar', l: 'Editar' },
+  { k: 'aprovar', l: 'Aprovar' },
+  { k: 'financeiro', l: 'Financeiro' },
+  { k: 'ia', l: 'IA' },
+  { k: 'relatorios', l: 'Relatórios' },
+]
+const COR = ['#b8943f', '#8b5cf6', '#5b8def', '#10b981', '#06b6d4', '#4a4a57']
 
 export default function Equipe() {
-  const { membros, tarefas } = useData()
+  const { membros, tarefas, perfis } = useData()
   const [convidar, setConvidar] = useState(false)
+
+  const perfilNome = (chave: string) =>
+    perfis.find((p) => p.chave === chave)?.nome ?? chave
+
   return (
     <div>
       <PageHeader
@@ -53,16 +47,14 @@ export default function Equipe() {
           return (
             <div key={m.id} className="panel panel-hover p-4">
               <div className="flex items-center gap-3">
-                <Avatar nome={m.nome} size={44} />
+                <Avatar nome={m.nome} url={m.avatarUrl} size={44} />
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-bold text-ink-50">
                     {m.nome}
                   </div>
                   <div className="truncate text-xs text-ink-500">{m.email}</div>
                 </div>
-                <Badge cor={PERFIL_COR[m.perfil]}>
-                  {PERFIL_LABEL[m.perfil]}
-                </Badge>
+                <Badge cor="#b8943f">{perfilNome(m.perfil)}</Badge>
               </div>
               <div className="mt-3 flex items-center justify-between border-t border-white/[0.05] pt-3 text-xs">
                 <span className="text-ink-500">{m.cargo}</span>
@@ -76,45 +68,48 @@ export default function Equipe() {
         })}
       </div>
 
-      {/* Matriz de permissões */}
+      {/* Matriz de permissões (somente leitura) */}
       <div className="panel mt-4 overflow-hidden">
-        <div className="border-b border-white/[0.06] p-4">
-          <h3 className="font-display text-sm font-bold text-ink-100">
-            Matriz de permissões
-          </h3>
-          <p className="text-xs text-ink-500">
-            Controle de acesso por perfil
-          </p>
+        <div className="flex items-center justify-between border-b border-white/[0.06] p-4">
+          <div>
+            <h3 className="font-display text-sm font-bold text-ink-100">
+              Matriz de permissões
+            </h3>
+            <p className="text-xs text-ink-500">
+              Controle de acesso por perfil
+            </p>
+          </div>
+          <Link
+            to="/configuracoes"
+            className="flex items-center gap-1.5 text-xs font-semibold text-gold-400 hover:text-gold-300"
+          >
+            <Settings size={13} /> Editar perfis
+          </Link>
         </div>
         <table className="w-full text-sm">
           <thead>
             <tr className="text-[11px] uppercase tracking-wide text-ink-500">
               <th className="px-4 py-2.5 text-left font-semibold">Perfil</th>
-              {PERMISSOES.map((p) => (
-                <th key={p} className="px-2 py-2.5 text-center font-semibold">
-                  {p}
+              {PERMS.map((p) => (
+                <th key={p.k} className="px-2 py-2.5 text-center font-semibold">
+                  {p.l}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {(Object.keys(MATRIZ) as Perfil[]).map((perfil) => (
+            {perfis.map((perfil, i) => (
               <tr
-                key={perfil}
+                key={perfil.id}
                 className="border-t border-white/[0.04] hover:bg-ink-800/40"
               >
                 <td className="px-4 py-2.5">
-                  <Badge cor={PERFIL_COR[perfil]}>
-                    {PERFIL_LABEL[perfil]}
-                  </Badge>
+                  <Badge cor={COR[i % COR.length]}>{perfil.nome}</Badge>
                 </td>
-                {MATRIZ[perfil].map((tem, i) => (
-                  <td key={i} className="px-2 py-2.5 text-center">
-                    {tem ? (
-                      <Check
-                        size={15}
-                        className="mx-auto text-emerald-400"
-                      />
+                {PERMS.map((p) => (
+                  <td key={p.k} className="px-2 py-2.5 text-center">
+                    {perfil.permissoes[p.k] ? (
+                      <Check size={15} className="mx-auto text-emerald-400" />
                     ) : (
                       <Minus size={15} className="mx-auto text-ink-600" />
                     )}

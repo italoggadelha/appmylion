@@ -4,17 +4,15 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { X, Check, Minus } from 'lucide-react'
 import { useData } from '@/lib/data'
 import { supabase, SUPABASE_PRONTO } from '@/lib/supabase'
-import { PERFIL_LABEL, type Perfil } from '@/data/rugido'
 
-const PERMISSOES = ['Visualizar', 'Editar', 'Aprovar', 'Financeiro', 'IA', 'Relatórios']
-const MATRIZ: Record<Perfil, boolean[]> = {
-  ceo: [true, true, true, true, true, true],
-  gestor: [true, true, true, true, true, true],
-  coordenador: [true, true, true, false, true, true],
-  operacional: [true, true, false, false, true, false],
-  freelancer: [true, true, false, false, false, false],
-  cliente: [true, false, true, false, false, false],
-}
+const PERMISSOES = [
+  { k: 'visualizar', l: 'Visualizar' },
+  { k: 'editar', l: 'Editar' },
+  { k: 'aprovar', l: 'Aprovar' },
+  { k: 'financeiro', l: 'Financeiro' },
+  { k: 'ia', l: 'IA' },
+  { k: 'relatorios', l: 'Relatórios' },
+]
 
 export default function ConvidarMembroModal({
   aberto,
@@ -23,14 +21,16 @@ export default function ConvidarMembroModal({
   aberto: boolean
   onFechar: () => void
 }) {
-  const { recarregar } = useData()
+  const { recarregar, perfis } = useData()
   const [f, setF] = useState({
     nome: '',
     email: '',
     cargo: '',
-    perfil: 'operacional' as Perfil,
+    perfil: 'operacional',
     senha: 'Rugido@2026',
   })
+  const permsDoF =
+    perfis.find((p) => p.chave === f.perfil)?.permissoes ?? {}
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState('')
   const [ok, setOk] = useState(false)
@@ -151,11 +151,11 @@ export default function ConvidarMembroModal({
                     <select
                       className="input"
                       value={f.perfil}
-                      onChange={(e) => set('perfil', e.target.value as Perfil)}
+                      onChange={(e) => set('perfil', e.target.value)}
                     >
-                      {(Object.keys(PERFIL_LABEL) as Perfil[]).map((p) => (
-                        <option key={p} value={p}>
-                          {PERFIL_LABEL[p]}
+                      {perfis.map((p) => (
+                        <option key={p.chave} value={p.chave}>
+                          {p.nome}
                         </option>
                       ))}
                     </select>
@@ -172,30 +172,24 @@ export default function ConvidarMembroModal({
                 {/* Parâmetros de acesso do perfil */}
                 <div className="rounded-xl border border-white/[0.06] bg-ink-900 p-3">
                   <div className="text-[11px] font-bold uppercase tracking-wide text-ink-500">
-                    Parâmetros de acesso · {PERFIL_LABEL[f.perfil]}
+                    Parâmetros de acesso
                   </div>
                   <div className="mt-2 grid grid-cols-2 gap-1.5">
-                    {PERMISSOES.map((p, i) => (
-                      <div
-                        key={p}
-                        className="flex items-center gap-1.5 text-xs"
-                      >
-                        {MATRIZ[f.perfil][i] ? (
-                          <Check size={13} className="text-emerald-400" />
-                        ) : (
-                          <Minus size={13} className="text-ink-600" />
-                        )}
-                        <span
-                          className={
-                            MATRIZ[f.perfil][i]
-                              ? 'text-ink-200'
-                              : 'text-ink-600'
-                          }
-                        >
-                          {p}
-                        </span>
-                      </div>
-                    ))}
+                    {PERMISSOES.map((p) => {
+                      const tem = !!permsDoF[p.k]
+                      return (
+                        <div key={p.k} className="flex items-center gap-1.5 text-xs">
+                          {tem ? (
+                            <Check size={13} className="text-emerald-400" />
+                          ) : (
+                            <Minus size={13} className="text-ink-600" />
+                          )}
+                          <span className={tem ? 'text-ink-200' : 'text-ink-600'}>
+                            {p.l}
+                          </span>
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
 

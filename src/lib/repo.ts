@@ -9,6 +9,7 @@ import type {
   FaseConfig,
   TarefaTemplate,
   Anexo,
+  PerfilAcesso,
 } from './types'
 import { FASES_RUGIDO, type FaseId } from '@/data/rugido'
 import * as mock from '@/data/mock'
@@ -116,6 +117,7 @@ export interface Snapshot {
   status: StatusTarefa[]
   fases: FaseConfig[]
   templates: TarefaTemplate[]
+  perfis: PerfilAcesso[]
 }
 
 export async function carregarTudo(): Promise<Snapshot> {
@@ -129,23 +131,26 @@ export async function carregarTudo(): Promise<Snapshot> {
       status: STATUS_PADRAO,
       fases: FASES_PADRAO,
       templates: [],
+      perfis: [],
     }
   }
 
-  const [mRes, cRes, tRes, aRes, auRes, sRes, fRes, tpRes] = await Promise.all([
-    supabase.from('membros').select('*').order('email'),
-    supabase.from('clientes').select('*').order('empresa'),
-    supabase.from('tarefas').select('*, subtarefas(*)').order('ordem'),
-    supabase.from('aprovacoes').select('*').order('enviada_em', { ascending: false }),
-    supabase.from('automacoes').select('*').order('criado_em'),
-    supabase.from('status_tarefa').select('*').order('ordem'),
-    supabase.from('fase_config').select('*').order('ordem'),
-    supabase.from('tarefa_templates').select('*').order('ordem'),
-  ])
+  const [mRes, cRes, tRes, aRes, auRes, sRes, fRes, tpRes, pRes] =
+    await Promise.all([
+      supabase.from('membros').select('*').order('email'),
+      supabase.from('clientes').select('*').order('empresa'),
+      supabase.from('tarefas').select('*, subtarefas(*)').order('ordem'),
+      supabase.from('aprovacoes').select('*').order('enviada_em', { ascending: false }),
+      supabase.from('automacoes').select('*').order('criado_em'),
+      supabase.from('status_tarefa').select('*').order('ordem'),
+      supabase.from('fase_config').select('*').order('ordem'),
+      supabase.from('tarefa_templates').select('*').order('ordem'),
+      supabase.from('perfis_acesso').select('*').order('ordem'),
+    ])
 
   const erro =
     mRes.error || cRes.error || tRes.error || aRes.error || auRes.error ||
-    sRes.error || fRes.error || tpRes.error
+    sRes.error || fRes.error || tpRes.error || pRes.error
   if (erro) throw erro
 
   const membros = (mRes.data ?? []).map(mapMembro)
@@ -164,7 +169,35 @@ export async function carregarTudo(): Promise<Snapshot> {
       ? (fRes.data as FaseConfig[])
       : FASES_PADRAO,
     templates: (tpRes.data ?? []) as TarefaTemplate[],
+    perfis: (pRes.data ?? []) as PerfilAcesso[],
   }
+}
+
+export async function salvarPerfil(
+  p: { id?: string; chave?: string; nome: string; permissoes: Record<string, boolean> },
+) {
+  if (!SUPABASE_PRONTO) throw new Error('Supabase não configurado')
+  if (p.id) {
+    const { error } = await supabase
+      .from('perfis_acesso')
+      .update({ nome: p.nome, permissoes: p.permissoes })
+      .eq('id', p.id)
+    if (error) throw error
+  } else {
+    const chave =
+      'perfil_' +
+      p.nome.toLowerCase().normalize('NFD').replace(/[^\w]/g, '_').slice(0, 24)
+    const { error } = await supabase
+      .from('perfis_acesso')
+      .insert({ chave, nome: p.nome, permissoes: p.permissoes, ordem: 99 })
+    if (error) throw error
+  }
+}
+
+export async function excluirPerfil(id: string) {
+  if (!SUPABASE_PRONTO) return
+  const { error } = await supabase.from('perfis_acesso').delete().eq('id', id)
+  if (error) throw error
 }
 
 // ── Mutações ────────────────────────────────────────────────────────
@@ -487,6 +520,8 @@ export interface RelatorioTrafego {
   periodo: string
   publicado: boolean
   metricas: Record<string, any>
+  metaToken?: string
+  metaAdAccount?: string
 }
 
 export async function getRelatorioCliente(
@@ -507,7 +542,20 @@ export async function getRelatorioCliente(
     periodo: data.periodo,
     publicado: data.publicado,
     metricas: data.metricas ?? {},
+    metaToken: data.meta_token ?? undefined,
+    metaAdAccount: data.meta_ad_account ?? undefined,
   }
+}
+
+export async function sincronizarMeta(clienteId: string) {
+  if (!SUPABASE_PRONTO) throw new Error('Supabase não configurado')
+  const { data, error } = await supabase.functions.invoke('meta-insights', {
+    body: { clienteId },
+  })
+  if (error) throw error
+  return data as
+    | { metricas: Record<string, any>; criativos: any[] }
+    | { erro: string; detalhe?: string }
 }
 
 export async function salvarRelatorio(
