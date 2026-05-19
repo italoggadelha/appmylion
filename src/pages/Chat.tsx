@@ -348,6 +348,11 @@ export default function Chat() {
                       {c.ultimaMsg ?? 'Sem mensagens'}
                     </div>
                     <div className="mt-1 flex items-center gap-1.5">
+                      {c.tipo === 'grupo' && (
+                        <span className="rounded bg-fase-ultra/20 px-1.5 py-0.5 text-[9px] font-bold uppercase text-fase-ultra">
+                          👥 Grupo
+                        </span>
+                      )}
                       <span
                         className="rounded px-1.5 py-0.5 text-[9px] font-bold uppercase"
                         style={{ backgroundColor: `${st.c}22`, color: st.c }}
@@ -437,9 +442,17 @@ export default function Chat() {
                           <img
                             src={m.url}
                             alt={m.conteudo}
-                            className="max-h-44 rounded-lg"
+                            className="max-h-52 rounded-lg"
                           />
                         </a>
+                      ) : m.tipo === 'audio' && m.url ? (
+                        <audio controls src={m.url} className="max-w-[220px]" />
+                      ) : m.tipo === 'video' && m.url ? (
+                        <video
+                          controls
+                          src={m.url}
+                          className="max-h-52 rounded-lg"
+                        />
                       ) : m.tipo !== 'texto' && m.url ? (
                         <a
                           href={m.url}
@@ -447,7 +460,7 @@ export default function Chat() {
                           rel="noreferrer"
                           className="flex items-center gap-2 underline"
                         >
-                          <FileText size={15} /> {m.conteudo}
+                          <FileText size={15} /> {m.conteudo || 'arquivo'}
                         </a>
                       ) : (
                         <span className="whitespace-pre-wrap">{m.conteudo}</span>

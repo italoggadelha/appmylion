@@ -1,7 +1,6 @@
 // ═══════════════════════════════════════════════════════════════════
 // RUGIDO OS — Gateway WhatsApp (QR-Code via Baileys)
-// Mantém a sessão do WhatsApp Web, gera o QR, recebe e envia mensagens,
-// sincronizando com o schema "rugido" do Supabase.
+// Sessão WhatsApp Web: QR, mensagens (texto + mídia), grupos.
 // ═══════════════════════════════════════════════════════════════════
 import {
   makeWASocket,
@@ -9,6 +8,7 @@ import {
   DisconnectReason,
   fetchLatestBaileysVersion,
   jidNormalizedUser,
+  downloadMediaMessage,
 } from '@whiskeysockets/baileys'
 import { createClient } from '@supabase/supabase-js'
 import QRCode from 'qrcode'
@@ -30,7 +30,6 @@ const log = (...a) => console.log(new Date().toISOString(), ...a)
 const setConexao = (campos) =>
   sb.from('wpp_conexao').update(campos).eq('id', 1)
 
-// Resolve o JID de destino: usa o que veio (com @) ou monta a partir do número.
 function destino(telefone) {
   if (!telefone) return null
   if (telefone.includes('@')) return telefone
@@ -38,8 +37,41 @@ function destino(telefone) {
   return num ? num + '@s.whatsapp.net' : null
 }
 
+// Identifica mídia numa mensagem do WhatsApp
+function extrairMidia(msg) {
+  if (msg?.imageMessage)
+    return { tipo: 'imagem', node: msg.imageMessage, ext: 'jpg', mime: 'image/jpeg' }
+  if (msg?.videoMessage)
+    return { tipo: 'video', node: msg.videoMessage, ext: 'mp4', mime: 'video/mp4' }
+  if (msg?.audioMessage)
+    return { tipo: 'audio', node: msg.audioMessage, ext: 'ogg', mime: 'audio/ogg' }
+  if (msg?.documentMessage)
+    return {
+      tipo: 'documento',
+      node: msg.documentMessage,
+      ext: (msg.documentMessage.fileName || 'arquivo').split('.').pop() || 'bin',
+      mime: msg.documentMessage.mimetype || 'application/octet-stream',
+      nome: msg.documentMessage.fileName,
+    }
+  if (msg?.stickerMessage)
+    return { tipo: 'imagem', node: msg.stickerMessage, ext: 'webp', mime: 'image/webp' }
+  return null
+}
+
 let sock = null
 let conectado = false
+const nomesGrupo = {}
+
+async function nomeDoGrupo(jid) {
+  if (nomesGrupo[jid]) return nomesGrupo[jid]
+  try {
+    const meta = await sock.groupMetadata(jid)
+    nomesGrupo[jid] = meta?.subject || 'Grupo'
+  } catch {
+    nomesGrupo[jid] = 'Grupo'
+  }
+  return nomesGrupo[jid]
+}
 
 async function start() {
   const { state, saveCreds } = await useMultiFileAuthState('auth_info')
@@ -96,38 +128,74 @@ async function start() {
       try {
         if (m.key.fromMe) continue
         const jid = m.key.remoteJid || ''
-        if (jid.endsWith('@g.us') || jid.endsWith('@newsletter') || jid === 'status@broadcast')
-          continue
+        if (jid.endsWith('@newsletter') || jid === 'status@broadcast') continue
         if (!m.message) {
-          log('Mensagem sem conteúdo (não decifrada) de', jid)
+          log('Mensagem não decifrada de', jid)
           continue
         }
-        const texto =
-          m.message?.conversation ||
-          m.message?.extendedTextMessage?.text ||
-          (m.message?.imageMessage ? '[imagem]' : '') ||
-          (m.message?.audioMessage ? '[áudio]' : '') ||
-          (m.message?.videoMessage ? '[vídeo]' : '') ||
-          (m.message?.documentMessage ? '[documento]' : '') ||
-          '[mensagem]'
+        const ehGrupo = jid.endsWith('@g.us')
+
+        // conteúdo da mensagem (texto + mídia)
+        const corpo =
+          m.message.ephemeralMessage?.message ||
+          m.message.viewOnceMessage?.message ||
+          m.message
+        const midia = extrairMidia(corpo)
+        let tipo = 'texto'
+        let url = null
+        let texto =
+          corpo.conversation ||
+          corpo.extendedTextMessage?.text ||
+          corpo.imageMessage?.caption ||
+          corpo.videoMessage?.caption ||
+          ''
+
+        if (midia) {
+          tipo = midia.tipo
+          try {
+            const buffer = await downloadMediaMessage(
+              { key: m.key, message: corpo },
+              'buffer',
+              {},
+              { reuploadRequest: sock.updateMediaMessage },
+            )
+            const nomeArq = `wpp/${Date.now()}-${Math.random()
+              .toString(36)
+              .slice(2, 8)}.${midia.ext}`
+            const { error: errUp } = await sb.storage
+              .from('anexos')
+              .upload(nomeArq, buffer, { contentType: midia.mime })
+            if (!errUp) {
+              url = sb.storage.from('anexos').getPublicUrl(nomeArq).data.publicUrl
+            }
+          } catch (e) {
+            log('Falha ao baixar mídia:', e.message)
+          }
+          if (!texto)
+            texto = midia.nome || `[${tipo}]`
+        }
+        if (!texto && !url) texto = '[mensagem]'
 
         const jidNorm = jidNormalizedUser(jid)
-        // tenta achar conversa pelo jid completo OU pelo número puro
         const numero = jidNorm.split('@')[0]
+        const remetente =
+          m.pushName || (ehGrupo ? 'Participante' : numero)
+
         let { data: conv } = await sb
           .from('conversas')
           .select('id')
           .eq('canal', 'whatsapp')
-          .or(`telefone.eq.${jidNorm},telefone.eq.${numero}`)
+          .eq('telefone', ehGrupo ? jid : jidNorm)
           .maybeSingle()
         if (!conv) {
+          const titulo = ehGrupo ? await nomeDoGrupo(jid) : remetente
           const { data: nova } = await sb
             .from('conversas')
             .insert({
-              titulo: m.pushName || numero,
-              tipo: 'cliente',
+              titulo,
+              tipo: ehGrupo ? 'grupo' : 'cliente',
               canal: 'whatsapp',
-              telefone: jidNorm,
+              telefone: ehGrupo ? jid : jidNorm,
               status: 'aguardando_cliente',
             })
             .select('id')
@@ -135,23 +203,25 @@ async function start() {
           conv = nova
         }
         if (!conv) continue
+
         await sb.from('mensagens').insert({
           conversa_id: conv.id,
           do_cliente: true,
-          autor_nome: m.pushName || numero,
-          tipo: 'texto',
+          autor_nome: remetente,
+          tipo,
           conteudo: texto,
+          url,
           enviada: true,
         })
         await sb
           .from('conversas')
           .update({
-            ultima_msg: texto,
+            ultima_msg: tipo === 'texto' ? texto : `[${tipo}]`,
             ultima_em: new Date().toISOString(),
             status: 'aguardando_cliente',
           })
           .eq('id', conv.id)
-        log('RECEBIDA de', jidNorm, '→', texto.slice(0, 40))
+        log('RECEBIDA', tipo, 'de', jidNorm)
       } catch (e) {
         log('Erro ao processar mensagem:', e.message)
       }
@@ -181,7 +251,7 @@ setInterval(async () => {
     if (!conectado || !sock?.user) return
     const { data: pend } = await sb
       .from('mensagens')
-      .select('id, conteudo, autor_nome, autor_funcao, conversas(telefone, canal)')
+      .select('id, conteudo, tipo, url, autor_nome, autor_funcao, conversas(telefone, canal)')
       .eq('enviada', false)
       .eq('do_cliente', false)
       .limit(20)
@@ -198,11 +268,25 @@ setInterval(async () => {
           (msg.autor_nome || 'Equipe') +
           (msg.autor_funcao ? ' — ' + msg.autor_funcao : '') +
           '*\n'
-        await sock.sendMessage(dest, {
-          text: assinatura + (msg.conteudo || ''),
-        })
+        let payload
+        if (msg.url && msg.tipo === 'imagem') {
+          payload = { image: { url: msg.url }, caption: assinatura.trim() }
+        } else if (msg.url && msg.tipo === 'video') {
+          payload = { video: { url: msg.url }, caption: assinatura.trim() }
+        } else if (msg.url && msg.tipo === 'audio') {
+          payload = { audio: { url: msg.url }, mimetype: 'audio/mp4' }
+        } else if (msg.url && (msg.tipo === 'documento' || msg.tipo === 'arquivo')) {
+          payload = {
+            document: { url: msg.url },
+            fileName: msg.conteudo || 'arquivo',
+            mimetype: 'application/octet-stream',
+          }
+        } else {
+          payload = { text: assinatura + (msg.conteudo || '') }
+        }
+        await sock.sendMessage(dest, payload)
         await sb.from('mensagens').update({ enviada: true }).eq('id', msg.id)
-        log('ENVIADA para', dest)
+        log('ENVIADA', msg.tipo, 'para', dest)
       } catch (e) {
         log('Falha ao enviar para', dest, ':', e.message)
       }
