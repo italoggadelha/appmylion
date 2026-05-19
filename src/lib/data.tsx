@@ -53,6 +53,7 @@ interface DataCtx extends Snapshot {
   abrirTarefa: (id: string) => void
   fecharTarefa: () => void
   membroAtual: Membro | null
+  podeVerValores: boolean
   // helpers
   clientePorId: (id: string) => Cliente | undefined
   membroPorId: (id: string) => Membro | undefined
@@ -195,6 +196,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
     toggleAutomacao(id, ativa).catch(() => recarregar())
   }
 
+  const membroAtual =
+    snap.membros.find((m) => m.email === usuario?.email) ?? null
+
   const valor: DataCtx = {
     ...snap,
     carregando,
@@ -221,8 +225,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
     tarefaAberta,
     abrirTarefa: (id) => setTarefaAberta(id),
     fecharTarefa: () => setTarefaAberta(null),
-    membroAtual:
-      snap.membros.find((m) => m.email === usuario?.email) ?? null,
+    membroAtual: membroAtual,
+    podeVerValores: (() => {
+      if (!membroAtual) return true // sem vínculo identificado: não bloqueia
+      const perfil = snap.perfis.find((p) => p.chave === membroAtual.perfil)
+      return perfil ? !!perfil.permissoes.financeiro : true
+    })(),
     clientePorId: (id) => snap.clientes.find((c) => c.id === id),
     membroPorId: (id) => snap.membros.find((m) => m.id === id),
     tarefasDoCliente: (id) => snap.tarefas.filter((t) => t.clienteId === id),

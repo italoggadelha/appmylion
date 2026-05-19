@@ -20,7 +20,6 @@ const AgentesIA = lazy(() => import('./pages/AgentesIA'))
 const Equipe = lazy(() => import('./pages/Equipe'))
 const Automacoes = lazy(() => import('./pages/Automacoes'))
 const Configuracoes = lazy(() => import('./pages/Configuracoes'))
-const Relatorios = lazy(() => import('./pages/Relatorios'))
 const Portal = lazy(() => import('./pages/Portal'))
 
 function Carregando() {
@@ -72,7 +71,6 @@ export default function App() {
           <Route path="automacoes" element={<Automacoes />} />
           <Route path="configuracoes" element={<Configuracoes />} />
           <Route path="portal" element={<Portal />} />
-          <Route path="relatorios" element={<Relatorios />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -100,6 +100,26 @@ export default function Aprovacoes() {
           const link = `${window.location.origin}/aprovar/${a.token}`
           return (
             <div key={a.id} className="panel panel-hover p-4">
+              {/* Cliente em destaque */}
+              <div className="mb-3 flex items-center gap-2 border-b border-white/[0.06] pb-2.5">
+                <Avatar
+                  nome={cli?.empresa ?? '?'}
+                  url={cli?.logoUrl}
+                  size={32}
+                />
+                <div className="min-w-0">
+                  <div className="text-[10px] uppercase tracking-wide text-ink-500">
+                    Cliente
+                  </div>
+                  <div className="truncate font-display text-sm font-bold text-ink-50">
+                    {cli?.empresa ?? '—'}
+                  </div>
+                </div>
+                <Badge cor={STATUS_COR[a.status]} className="ml-auto">
+                  {STATUS_LABEL[a.status]}
+                </Badge>
+              </div>
+
               <div className="flex items-start gap-3">
                 <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-ink-700 text-ink-300">
                   <Icon size={18} />
@@ -108,14 +128,10 @@ export default function Aprovacoes() {
                   <div className="text-sm font-semibold text-ink-100">
                     {a.titulo}
                   </div>
-                  <div className="flex flex-wrap items-center gap-x-2 text-xs text-ink-500">
-                    <Avatar nome={cli?.empresa ?? '?'} url={cli?.logoUrl} size={16} />
-                    {cli?.empresa} · {dataCurta(a.enviadaEm)}
+                  <div className="text-xs text-ink-500">
+                    Enviado {dataCurta(a.enviadaEm)}
                   </div>
                 </div>
-                <Badge cor={STATUS_COR[a.status]}>
-                  {STATUS_LABEL[a.status]}
-                </Badge>
               </div>
 
               {/* Solicitante */}

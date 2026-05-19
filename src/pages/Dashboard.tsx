@@ -30,7 +30,7 @@ import {
 import { useData } from '@/lib/data'
 import { FASES_RUGIDO } from '@/data/rugido'
 import { compactBrl, brl, duracao } from '@/lib/format'
-import { Avatar, Badge, PageHeader, ProgressBar } from '@/components/ui'
+import { Avatar, Badge, PageHeader, ProgressBar, Valor } from '@/components/ui'
 
 function TooltipBox({ active, payload, label }: any) {
   if (!active || !payload?.length) return null
@@ -49,7 +49,7 @@ function TooltipBox({ active, payload, label }: any) {
 const MEDALHA = ['#e7cc83', '#c9c9d2', '#c79a3a']
 
 export default function Dashboard() {
-  const { clientes, tarefas, aprovacoes, membros } = useData()
+  const { clientes, tarefas, aprovacoes, membros, podeVerValores } = useData()
   const [planosPendentes, setPlanosPendentes] = useState(0)
 
   useEffect(() => {
@@ -157,9 +157,9 @@ export default function Dashboard() {
     { label: 'Tempo médio/tarefa', valor: duracao(m.tempoMedio), icon: Timer, cor: '#8b5cf6' },
   ]
   const NEG_KPIS = [
-    { label: 'Clientes ativos', valor: String(m.ativos.length), sub: `${clientes.length} no total`, icon: Users, cor: '#5b8def' },
-    { label: 'MRR', valor: compactBrl(m.mrr), sub: 'Receita recorrente', icon: TrendingUp, cor: '#10b981' },
-    { label: 'Receita gerada', valor: compactBrl(m.receitaTotal), sub: 'Acumulado', icon: Wallet, cor: '#b8943f' },
+    { label: 'Clientes ativos', valor: String(m.ativos.length), sub: `${clientes.length} no total`, icon: Users, cor: '#5b8def', sensivel: false },
+    { label: 'MRR', valor: compactBrl(m.mrr), sub: 'Receita recorrente', icon: TrendingUp, cor: '#10b981', sensivel: true },
+    { label: 'Receita gerada', valor: compactBrl(m.receitaTotal), sub: 'Acumulado', icon: Wallet, cor: '#b8943f', sensivel: true },
   ]
 
   return (
@@ -307,7 +307,7 @@ export default function Dashboard() {
               </div>
               <div>
                 <div className="font-display text-xl font-bold text-ink-50">
-                  {k.valor}
+                  {k.sensivel ? <Valor>{k.valor}</Valor> : k.valor}
                 </div>
                 <div className="text-xs text-ink-400">{k.label}</div>
               </div>
@@ -323,6 +323,11 @@ export default function Dashboard() {
             Evolução da receita recorrente
           </h3>
           <p className="text-xs text-ink-500">Últimos 6 meses · MRR</p>
+          {!podeVerValores ? (
+            <div className="mt-4 grid h-52 place-items-center rounded-xl border border-white/[0.05] bg-ink-900 text-sm text-ink-500">
+              🔒 Sem permissão para ver valores financeiros
+            </div>
+          ) : (
           <div className="mt-4 h-52">
             <ResponsiveContainer>
               <AreaChart data={m.mrrSerie}>
@@ -340,6 +345,7 @@ export default function Dashboard() {
               </AreaChart>
             </ResponsiveContainer>
           </div>
+          )}
         </div>
 
         <div className="panel p-5">

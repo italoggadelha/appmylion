@@ -28,8 +28,8 @@ import {
   type FaseId,
 } from '@/data/rugido'
 import type { Tarefa } from '@/lib/types'
-import { brl, dataCurta } from '@/lib/format'
-import { Avatar, Badge, ProgressRing, ProgressBar } from '@/components/ui'
+import { brl, dataCurta, duracao } from '@/lib/format'
+import { Avatar, Badge, ProgressRing, ProgressBar, Valor } from '@/components/ui'
 
 export default function ClienteDetalhe() {
   const { id } = useParams()
@@ -38,6 +38,7 @@ export default function ClienteDetalhe() {
   const tarefas = cliente ? tarefasDoCliente(cliente.id) : []
   const [avancando, setAvancando] = useState(false)
   const [gerandoConteudo, setGerandoConteudo] = useState(false)
+  const tempoEquipe = tarefas.reduce((s, t) => s + t.tempoGastoSeg, 0)
 
   async function gerarConteudo() {
     if (!cliente?.mesesContrato) return
@@ -163,16 +164,19 @@ export default function ClienteDetalhe() {
 
           <div className="flex items-center gap-5">
             {[
-              { l: 'Plano', v: cliente.plano },
-              { l: 'Ticket', v: `${brl(cliente.ticket)}/mês` },
-              { l: 'Receita gerada', v: brl(cliente.receitaGerada) },
-              { l: 'Responsável', v: cliente.responsavelNome },
+              { l: 'Plano', v: cliente.plano, sensivel: false },
+              { l: 'Ticket', v: `${brl(cliente.ticket)}/mês`, sensivel: true },
+              { l: 'Receita gerada', v: brl(cliente.receitaGerada), sensivel: true },
+              { l: 'Tempo da equipe', v: duracao(tempoEquipe), sensivel: false },
+              { l: 'Responsável', v: cliente.responsavelNome, sensivel: false },
             ].map((s) => (
               <div key={s.l} className="hidden sm:block">
                 <div className="text-[10px] uppercase tracking-wide text-ink-500">
                   {s.l}
                 </div>
-                <div className="text-sm font-semibold text-ink-100">{s.v}</div>
+                <div className="text-sm font-semibold text-ink-100">
+                  {s.sensivel ? <Valor>{s.v}</Valor> : s.v}
+                </div>
               </div>
             ))}
             <div className="flex items-center gap-2">

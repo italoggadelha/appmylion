@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   Bot,
   Workflow,
-  BarChart3,
   UserCog,
   Globe,
   Settings,
@@ -22,7 +21,6 @@ const NAV = [
   { to: '/agentes', label: 'Agentes de IA', icon: Bot },
   { to: '/formularios', label: 'Formulários', icon: FileQuestion },
   { to: '/automacoes', label: 'Automações', icon: Workflow },
-  { to: '/relatorios', label: 'Relatórios', icon: BarChart3 },
 ]
 
 const NAV_GESTAO = [

@@ -2,77 +2,11 @@ import { useState } from 'react'
 import { Sparkles, ArrowRight } from 'lucide-react'
 import { PageHeader, Badge } from '@/components/ui'
 import AgenteChat, { type AgenteInfo } from '@/components/AgenteChat'
-
-interface Agente {
-  nome: string
-  papel: string
-  icone: string
-  cor: string
-  fase: string
-  capacidades: string[]
-}
-
-const AGENTES: Agente[] = [
-  {
-    nome: 'Agente Estratégico',
-    papel: 'Diagnóstico, ICP e posicionamento',
-    icone: '🧠',
-    cor: '#8b5cf6',
-    fase: 'Ultravisão',
-    capacidades: ['ICP & Avatar', 'Posicionamento', 'Análise de funil', 'Diagnóstico'],
-  },
-  {
-    nome: 'Agente Copywriter',
-    papel: 'Headlines, VSL, anúncios e conteúdo',
-    icone: '✍️',
-    cor: '#ec4899',
-    fase: 'Demanda',
-    capacidades: ['Headlines', 'VSL', 'Anúncios', 'Copies de conteúdo'],
-  },
-  {
-    nome: 'Agente Designer',
-    papel: 'Direções criativas e conceitos visuais',
-    icone: '🎨',
-    cor: '#f59e0b',
-    fase: 'Implementação',
-    capacidades: ['Ideias visuais', 'Conceitos', 'Layouts', 'Direção de arte'],
-  },
-  {
-    nome: 'Agente Web Designer',
-    papel: 'Estrutura de páginas, wireframes e UX',
-    icone: '🖥️',
-    cor: '#5b8def',
-    fase: 'Implementação',
-    capacidades: ['Wireframes', 'Estrutura de páginas', 'Sessões', 'UX'],
-  },
-  {
-    nome: 'Agente Gestor de Tráfego',
-    papel: 'Campanhas, públicos e otimização',
-    icone: '📈',
-    cor: '#10b981',
-    fase: 'Demanda',
-    capacidades: ['Estrutura de campanhas', 'Públicos', 'Métricas', 'Otimizações'],
-  },
-  {
-    nome: 'Agente SEO',
-    papel: 'SEO local e Google Meu Negócio',
-    icone: '🔎',
-    cor: '#06b6d4',
-    fase: 'Implementação',
-    capacidades: ['SEO local', 'Palavras-chave', 'Google Meu Negócio'],
-  },
-  {
-    nome: 'Agente Operacional',
-    papel: 'Gargalos, atrasos e dependências',
-    icone: '⚡',
-    cor: '#ef4444',
-    fase: 'Todas as fases',
-    capacidades: ['Detecção de gargalos', 'Tarefas travadas', 'Dependências', 'Redistribuição'],
-  },
-]
+import { AGENTES_IA } from '@/data/agentes'
 
 export default function AgentesIA() {
   const [ativo, setAtivo] = useState<AgenteInfo | null>(null)
+  const AGENTES = AGENTES_IA
   return (
     <div>
       <AgenteChat agente={ativo} onFechar={() => setAtivo(null)} />

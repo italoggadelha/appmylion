@@ -1,5 +1,20 @@
 import type { ReactNode } from 'react'
 import { iniciais } from '@/lib/format'
+import { useData } from '@/lib/data'
+
+// ── Valor monetário (borrado p/ quem não tem permissão financeira) ──
+export function Valor({ children }: { children: ReactNode }) {
+  const { podeVerValores } = useData()
+  if (podeVerValores) return <>{children}</>
+  return (
+    <span
+      className="select-none blur-[6px]"
+      title="Sem permissão para ver valores"
+    >
+      {children}
+    </span>
+  )
+}
 
 // ── Avatar ──────────────────────────────────────────────────────────
 export function Avatar({

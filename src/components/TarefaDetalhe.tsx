@@ -33,6 +33,8 @@ import {
   executarAgente,
 } from '@/lib/repo'
 import { SUPABASE_PRONTO } from '@/lib/supabase'
+import { AGENTES_IA } from '@/data/agentes'
+import { executarAgenteIA } from '@/lib/repo'
 import type { Anexo, AnexoCategoria, AnexoTipo, Tarefa } from '@/lib/types'
 import { dataCurta, duracao, cronometro } from '@/lib/format'
 import { Avatar } from './ui'
@@ -99,15 +101,46 @@ export default function TarefaDetalhe() {
     if (!SUPABASE_PRONTO) return alert('Disponível com o backend conectado.')
     setExecAgente(true)
     try {
-      const r = await executarAgente(tarefa.id, agenteSel)
-      if (r?.ok) {
-        await recarregarAnexos()
+      if (agenteSel.startsWith('ia:')) {
+        // Agente de IA interno (Claude)
+        const ag = AGENTES_IA.find((a) => a.id === agenteSel.slice(3))
+        if (!ag) return
+        const msg =
+          `Produza a entrega completa desta tarefa de uma agência de marketing.\n` +
+          `Tarefa: "${tarefa.titulo}".\n${tarefa.descricao ?? ''}\n` +
+          (ag.html
+            ? 'Entregue SOMENTE o código HTML completo da página, pronto para publicar, sem explicações fora do código.'
+            : 'Entregue o material final, pronto para uso.')
+        const r = await executarAgenteIA({
+          agente: ag.nome,
+          papel: ag.papel,
+          clienteId: tarefa.clienteId,
+          mensagem: msg,
+        })
+        if (r?.resposta) {
+          await criarAnexo({
+            tarefaId: tarefa.id,
+            categoria: 'aprovacao',
+            tipo: ag.html ? 'html' : 'texto',
+            titulo: `${ag.nome} · ${tarefa.titulo}`,
+            conteudo: r.resposta,
+          })
+          await recarregarAnexos()
+        } else {
+          alert(
+            r?.erro === 'sem_chave'
+              ? 'A chave de IA não está configurada.'
+              : 'O agente não conseguiu gerar a entrega.',
+          )
+        }
       } else {
-        alert(
-          'O agente não retornou um resultado válido.\n' +
-            (r?.erro ?? '') +
-            (r?.detalhe ? '\n' + JSON.stringify(r.detalhe).slice(0, 200) : ''),
-        )
+        // Agente externo (webhook)
+        const r = await executarAgente(tarefa.id, agenteSel.slice(4))
+        if (r?.ok) await recarregarAnexos()
+        else
+          alert(
+            'O agente não retornou um resultado válido.\n' + (r?.erro ?? ''),
+          )
       }
     } catch {
       alert('Falha ao executar o agente.')
@@ -284,34 +317,42 @@ export default function TarefaDetalhe() {
                 <div className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-gold-300">
                   <Send size={12} /> Executar agente nesta tarefa
                 </div>
-                {agentesExternos.length === 0 ? (
-                  <p className="text-xs text-ink-500">
-                    Nenhum agente conectado. Configure em Configurações →
-                    Agentes conectados.
-                  </p>
-                ) : (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <select
-                      className="input flex-1"
-                      value={agenteSel}
-                      onChange={(e) => setAgenteSel(e.target.value)}
-                    >
-                      <option value="">Escolha o agente…</option>
-                      {agentesExternos.map((ag) => (
-                        <option key={ag.id} value={ag.id}>
-                          {ag.nome}
+                <div className="flex flex-wrap items-center gap-2">
+                  <select
+                    className="input flex-1"
+                    value={agenteSel}
+                    onChange={(e) => setAgenteSel(e.target.value)}
+                  >
+                    <option value="">Escolha o agente…</option>
+                    <optgroup label="Agentes de IA (Claude)">
+                      {AGENTES_IA.map((ag) => (
+                        <option key={ag.id} value={`ia:${ag.id}`}>
+                          {ag.icone} {ag.nome}
                         </option>
                       ))}
-                    </select>
-                    <button
-                      onClick={rodarAgente}
-                      disabled={!agenteSel || execAgente}
-                      className="btn-gold py-2 text-xs"
-                    >
-                      {execAgente ? 'Executando…' : 'Executar'}
-                    </button>
-                  </div>
-                )}
+                    </optgroup>
+                    {agentesExternos.length > 0 && (
+                      <optgroup label="Agentes conectados (webhook)">
+                        {agentesExternos.map((ag) => (
+                          <option key={ag.id} value={`ext:${ag.id}`}>
+                            {ag.nome}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                  </select>
+                  <button
+                    onClick={rodarAgente}
+                    disabled={!agenteSel || execAgente}
+                    className="btn-gold py-2 text-xs"
+                  >
+                    {execAgente ? 'Gerando…' : 'Executar'}
+                  </button>
+                </div>
+                <p className="mt-1.5 text-[11px] text-ink-500">
+                  O resultado entra como anexo desta tarefa (HTML abre página
+                  para aprovar).
+                </p>
               </div>
 
               {/* Anexos por categoria */}

@@ -29,9 +29,13 @@ function Card({ tarefa }: { tarefa: Tarefa }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({ id: tarefa.id })
   const cliente = clientePorId(tarefa.clienteId)
-  const style = transform
-    ? { transform: `translate3d(${transform.x}px,${transform.y}px,0)` }
-    : undefined
+  const style = {
+    borderLeft: `3px solid ${si.cor}`,
+    background: `linear-gradient(100deg, ${si.cor}14, transparent 38%)`,
+    ...(transform
+      ? { transform: `translate3d(${transform.x}px,${transform.y}px,0)` }
+      : {}),
+  }
 
   return (
     <div
@@ -80,7 +84,12 @@ function Card({ tarefa }: { tarefa: Tarefa }) {
           {tarefa.precisaAprovacao && <Badge cor="#8b5cf6">aprov</Badge>}
         </div>
         {tarefa.responsavelNome && (
-          <Avatar nome={tarefa.responsavelNome} size={24} />
+          <div className="flex items-center gap-1.5">
+            <Avatar nome={tarefa.responsavelNome} size={20} />
+            <span className="max-w-[90px] truncate text-[11px] font-medium text-ink-300">
+              {tarefa.responsavelNome.split(' ')[0]}
+            </span>
+          </div>
         )}
       </div>
     </div>

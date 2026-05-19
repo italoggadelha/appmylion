@@ -211,6 +211,20 @@ export async function excluirAgenteExterno(id: string) {
   if (error) throw error
 }
 
+export async function executarAgenteIA(p: {
+  agente: string
+  papel: string
+  clienteId?: string
+  mensagem: string
+}) {
+  if (!SUPABASE_PRONTO) throw new Error('Supabase não configurado')
+  const { data, error } = await supabase.functions.invoke('agente-ia', {
+    body: p,
+  })
+  if (error) throw error
+  return data as { resposta?: string; erro?: string }
+}
+
 export async function executarAgente(tarefaId: string, agenteId: string) {
   if (!SUPABASE_PRONTO) throw new Error('Supabase não configurado')
   const { data, error } = await supabase.functions.invoke('executar-agente', {
@@ -386,6 +400,27 @@ export async function criarAprovacao(a: {
     .single()
   if (error) throw error
   return data as { token: string }
+}
+
+// ── Membros da equipe ───────────────────────────────────────────────
+export async function atualizarMembro(
+  id: string,
+  campos: { nome?: string; cargo?: string; perfil?: string; avatarUrl?: string },
+) {
+  if (!SUPABASE_PRONTO) return
+  const db: Record<string, unknown> = {}
+  if (campos.nome !== undefined) db.nome = campos.nome
+  if (campos.cargo !== undefined) db.cargo = campos.cargo || null
+  if (campos.perfil !== undefined) db.perfil = campos.perfil
+  if (campos.avatarUrl !== undefined) db.avatar_url = campos.avatarUrl || null
+  const { error } = await supabase.from('membros').update(db).eq('id', id)
+  if (error) throw error
+}
+
+export async function excluirMembro(id: string) {
+  if (!SUPABASE_PRONTO) return
+  const { error } = await supabase.from('membros').delete().eq('id', id)
+  if (error) throw error
 }
 
 export async function gerarTarefasFase(clienteId: string, fase: FaseId) {

@@ -4,6 +4,9 @@ import { Link } from 'react-router-dom'
 import { useData } from '@/lib/data'
 import { Avatar, Badge, PageHeader } from '@/components/ui'
 import ConvidarMembroModal from '@/components/ConvidarMembroModal'
+import MembroModal from '@/components/MembroModal'
+import type { Membro } from '@/lib/types'
+import { Pencil } from 'lucide-react'
 
 const PERMS = [
   { k: 'visualizar', l: 'Visualizar' },
@@ -18,6 +21,7 @@ const COR = ['#b8943f', '#8b5cf6', '#5b8def', '#10b981', '#06b6d4', '#4a4a57']
 export default function Equipe() {
   const { membros, tarefas, perfis } = useData()
   const [convidar, setConvidar] = useState(false)
+  const [editando, setEditando] = useState<Membro | null>(null)
 
   const perfilNome = (chave: string) =>
     perfis.find((p) => p.chave === chave)?.nome ?? chave
@@ -38,6 +42,7 @@ export default function Equipe() {
         aberto={convidar}
         onFechar={() => setConvidar(false)}
       />
+      <MembroModal membro={editando} onFechar={() => setEditando(null)} />
 
       {/* Membros */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -45,7 +50,7 @@ export default function Equipe() {
           const minhas = tarefas.filter((t) => t.responsavelId === m.id)
           const ativas = minhas.filter((t) => t.status !== 'concluida').length
           return (
-            <div key={m.id} className="panel panel-hover p-4">
+            <div key={m.id} className="panel panel-hover group p-4">
               <div className="flex items-center gap-3">
                 <Avatar nome={m.nome} url={m.avatarUrl} size={44} />
                 <div className="min-w-0 flex-1">
@@ -54,6 +59,13 @@ export default function Equipe() {
                   </div>
                   <div className="truncate text-xs text-ink-500">{m.email}</div>
                 </div>
+                <button
+                  onClick={() => setEditando(m)}
+                  className="grid h-7 w-7 place-items-center rounded-lg text-ink-500 hover:bg-ink-700 hover:text-gold-300"
+                  title="Editar membro"
+                >
+                  <Pencil size={13} />
+                </button>
                 <Badge cor="#b8943f">{perfilNome(m.perfil)}</Badge>
               </div>
               <div className="mt-3 flex items-center justify-between border-t border-white/[0.05] pt-3 text-xs">

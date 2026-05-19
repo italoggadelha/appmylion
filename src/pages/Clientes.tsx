@@ -6,7 +6,7 @@ import { useData } from '@/lib/data'
 import { FASES_RUGIDO, faseById } from '@/data/rugido'
 import type { ClienteStatus } from '@/lib/types'
 import { brl, dataCurta } from '@/lib/format'
-import { Avatar, Badge, PageHeader, ProgressBar } from '@/components/ui'
+import { Avatar, Badge, PageHeader, ProgressBar, Valor } from '@/components/ui'
 import NovoClienteModal from '@/components/NovoClienteModal'
 
 const STATUS_COR: Record<ClienteStatus, string> = {
@@ -196,7 +196,7 @@ export default function Clientes() {
                     Entrada {dataCurta(c.dataEntrada)}
                   </span>
                   <span className="font-semibold text-ink-200">
-                    {brl(c.ticket)}
+                    <Valor>{brl(c.ticket)}</Valor>
                     <span className="text-ink-500">/mês</span>
                   </span>
                 </div>
