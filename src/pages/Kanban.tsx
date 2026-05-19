@@ -101,28 +101,25 @@ function ColunaFase({
   return (
     <div className="flex w-72 shrink-0 flex-col">
       <div
-        className="mb-2 rounded-xl border p-3"
+        className="mb-2 rounded-xl p-3 shadow-lg"
         style={{
-          borderColor: `${fase.cor}40`,
-          background: `linear-gradient(180deg, ${fase.cor}1a, transparent)`,
+          background: `linear-gradient(135deg, ${fase.cor}, ${fase.cor}cc)`,
+          boxShadow: `0 6px 18px -6px ${fase.cor}88`,
         }}
       >
         <div className="flex items-center gap-2">
-          <span
-            className="grid h-7 w-7 place-items-center rounded-lg text-sm font-bold"
-            style={{ backgroundColor: `${fase.cor}26`, color: fase.cor }}
-          >
+          <span className="grid h-7 w-7 place-items-center rounded-lg bg-black/25 text-sm font-extrabold text-white">
             {fase.numero}
           </span>
-          <span className="text-base">{fase.simbolo}</span>
-          <span className="rounded-full bg-ink-700 px-1.5 text-[11px] font-bold text-ink-300">
+          <span className="text-lg">{fase.simbolo}</span>
+          <span className="ml-auto rounded-full bg-black/30 px-2 py-0.5 text-[11px] font-bold text-white">
             {tarefas.length}
           </span>
         </div>
-        <div className="mt-2 text-sm font-bold leading-tight text-ink-50">
+        <div className="mt-2 font-display text-sm font-extrabold leading-tight text-white">
           {fase.nome}
         </div>
-        <div className="text-[11px] text-ink-500">
+        <div className="text-[11px] font-medium text-white/75">
           {concluidas} concluída(s) · {fase.subtitulo}
         </div>
       </div>

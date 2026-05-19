@@ -6,11 +6,24 @@ export function Avatar({
   nome,
   size = 32,
   className = '',
+  url,
 }: {
   nome: string
   size?: number
   className?: string
+  url?: string | null
 }) {
+  if (url) {
+    return (
+      <img
+        src={url}
+        alt={nome}
+        title={nome}
+        className={`shrink-0 rounded-full object-cover ring-1 ring-white/10 ${className}`}
+        style={{ width: size, height: size }}
+      />
+    )
+  }
   return (
     <div
       className={`flex shrink-0 items-center justify-center rounded-full bg-ink-600 font-semibold text-ink-100 ring-1 ring-white/10 ${className}`}

@@ -1,54 +1,67 @@
+import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import RequireAuth from './components/RequireAuth'
 import { DataProvider } from './lib/data'
 import Layout from './components/Layout'
 import Login from './pages/Login'
-import Aprovar from './pages/Aprovar'
-import Dashboard from './pages/Dashboard'
-import Clientes from './pages/Clientes'
-import ClienteDetalhe from './pages/ClienteDetalhe'
-import Kanban from './pages/Kanban'
-import Aprovacoes from './pages/Aprovacoes'
-import AgentesIA from './pages/AgentesIA'
-import Equipe from './pages/Equipe'
-import Automacoes from './pages/Automacoes'
-import Configuracoes from './pages/Configuracoes'
-import Relatorios from './pages/Relatorios'
-import Portal from './pages/Portal'
-import RelatorioPublico from './pages/RelatorioPublico'
+
+// Páginas carregadas sob demanda (code-splitting → app mais rápido)
+const Aprovar = lazy(() => import('./pages/Aprovar'))
+const RelatorioPublico = lazy(() => import('./pages/RelatorioPublico'))
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const Clientes = lazy(() => import('./pages/Clientes'))
+const ClienteDetalhe = lazy(() => import('./pages/ClienteDetalhe'))
+const Kanban = lazy(() => import('./pages/Kanban'))
+const Aprovacoes = lazy(() => import('./pages/Aprovacoes'))
+const AgentesIA = lazy(() => import('./pages/AgentesIA'))
+const Equipe = lazy(() => import('./pages/Equipe'))
+const Automacoes = lazy(() => import('./pages/Automacoes'))
+const Configuracoes = lazy(() => import('./pages/Configuracoes'))
+const Relatorios = lazy(() => import('./pages/Relatorios'))
+const Portal = lazy(() => import('./pages/Portal'))
+
+function Carregando() {
+  return (
+    <div className="grid h-[60vh] place-items-center">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-ink-600 border-t-gold-400" />
+    </div>
+  )
+}
 
 export default function App() {
   return (
-    <Routes>
-      {/* Públicas */}
-      <Route path="/login" element={<Login />} />
-      <Route path="/aprovar/:token" element={<Aprovar />} />
-      <Route path="/relatorio/:token" element={<RelatorioPublico />} />
+    <Suspense fallback={<Carregando />}>
+      <Routes>
+        {/* Públicas */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/aprovar/:token" element={<Aprovar />} />
+        <Route path="/relatorio/:token" element={<RelatorioPublico />} />
 
-      {/* Protegidas */}
-      <Route
-        element={
-          <RequireAuth>
-            <DataProvider>
-              <Layout />
-            </DataProvider>
-          </RequireAuth>
-        }
-      >
-        <Route index element={<Dashboard />} />
-        <Route path="clientes" element={<Clientes />} />
-        <Route path="clientes/:id" element={<ClienteDetalhe />} />
-        <Route path="kanban" element={<Kanban />} />
-        <Route path="aprovacoes" element={<Aprovacoes />} />
-        <Route path="agentes" element={<AgentesIA />} />
-        <Route path="equipe" element={<Equipe />} />
-        <Route path="automacoes" element={<Automacoes />} />
-        <Route path="configuracoes" element={<Configuracoes />} />
-        <Route path="portal" element={<Portal />} />
-        <Route path="relatorios" element={<Relatorios />} />
-      </Route>
+        {/* Protegidas */}
+        <Route
+          element={
+            <RequireAuth>
+              <DataProvider>
+                <Layout />
+              </DataProvider>
+            </RequireAuth>
+          }
+        >
+          <Route index element={<Dashboard />} />
+          <Route path="clientes" element={<Clientes />} />
+          <Route path="clientes/:id" element={<ClienteDetalhe />} />
+          <Route path="kanban" element={<Kanban />} />
+          <Route path="aprovacoes" element={<Aprovacoes />} />
+          <Route path="agentes" element={<AgentesIA />} />
+          <Route path="equipe" element={<Equipe />} />
+          <Route path="automacoes" element={<Automacoes />} />
+          <Route path="configuracoes" element={<Configuracoes />} />
+          <Route path="portal" element={<Portal />} />
+          <Route path="relatorios" element={<Relatorios />} />
+        </Route>
 
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Suspense>
   )
 }

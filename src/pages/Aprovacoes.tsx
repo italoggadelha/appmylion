@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Copy, ExternalLink, Image, FileText, Video, Layout } from 'lucide-react'
+import { Copy, ExternalLink, Image, FileText, Video, Layout, UserCircle } from 'lucide-react'
 import { useData } from '@/lib/data'
 import type { AprovacaoStatus } from '@/lib/types'
 import { dataCurta } from '@/lib/format'
@@ -26,12 +26,17 @@ const TIPO_ICON: Record<string, typeof Image> = {
 }
 
 export default function Aprovacoes() {
-  const { aprovacoes, clientePorId } = useData()
-  const [filtro, setFiltro] = useState<string>('todos')
-  const lista =
-    filtro === 'todos'
-      ? aprovacoes
-      : aprovacoes.filter((a) => a.status === filtro)
+  const { aprovacoes, clientePorId, clientes, membros } = useData()
+  const [filtro, setFiltro] = useState('todos')
+  const [cliente, setCliente] = useState('todos')
+  const [membro, setMembro] = useState('todos')
+
+  const lista = aprovacoes.filter((a) => {
+    const okStatus = filtro === 'todos' || a.status === filtro
+    const okCliente = cliente === 'todos' || a.clienteId === cliente
+    const okMembro = membro === 'todos' || a.solicitadoPor === membro
+    return okStatus && okCliente && okMembro
+  })
 
   return (
     <div>
@@ -40,12 +45,13 @@ export default function Aprovacoes() {
         subtitulo="Entregas enviadas para validação dos clientes"
       />
 
-      <div className="mb-4 flex gap-2">
+      {/* Filtros de status */}
+      <div className="mb-3 flex flex-wrap gap-2">
         {['todos', 'pendente', 'ajustes', 'aprovado', 'reprovado'].map((f) => (
           <button
             key={f}
             onClick={() => setFiltro(f)}
-            className={`rounded-lg px-3 py-1.5 text-xs font-semibold capitalize transition-colors ${
+            className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
               filtro === f
                 ? 'bg-gold-500/15 text-gold-200'
                 : 'bg-ink-800 text-ink-400 hover:text-ink-100'
@@ -56,11 +62,42 @@ export default function Aprovacoes() {
         ))}
       </div>
 
+      {/* Filtros por cliente e membro */}
+      <div className="mb-4 flex flex-wrap gap-2">
+        <select
+          className="input w-auto"
+          value={cliente}
+          onChange={(e) => setCliente(e.target.value)}
+        >
+          <option value="todos">Todos os clientes</option>
+          {clientes.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.empresa}
+            </option>
+          ))}
+        </select>
+        <select
+          className="input w-auto"
+          value={membro}
+          onChange={(e) => setMembro(e.target.value)}
+        >
+          <option value="todos">Solicitado por (todos)</option>
+          {membros.map((mb) => (
+            <option key={mb.id} value={mb.id}>
+              {mb.nome}
+            </option>
+          ))}
+        </select>
+        <span className="ml-auto self-center text-xs text-ink-500">
+          {lista.length} aprovação(ões)
+        </span>
+      </div>
+
       <div className="grid gap-3 md:grid-cols-2">
         {lista.map((a) => {
-          const cliente = clientePorId(a.clienteId)
+          const cli = clientePorId(a.clienteId)
           const Icon = TIPO_ICON[a.tipo] ?? FileText
-          const link = `https://app.mylion.com.br/aprovar/${a.token}`
+          const link = `${window.location.origin}/aprovar/${a.token}`
           return (
             <div key={a.id} className="panel panel-hover p-4">
               <div className="flex items-start gap-3">
@@ -71,9 +108,9 @@ export default function Aprovacoes() {
                   <div className="text-sm font-semibold text-ink-100">
                     {a.titulo}
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-ink-500">
-                    <Avatar nome={cliente?.empresa ?? '?'} size={16} />
-                    {cliente?.empresa} · enviado {dataCurta(a.enviadaEm)}
+                  <div className="flex flex-wrap items-center gap-x-2 text-xs text-ink-500">
+                    <Avatar nome={cli?.empresa ?? '?'} url={cli?.logoUrl} size={16} />
+                    {cli?.empresa} · {dataCurta(a.enviadaEm)}
                   </div>
                 </div>
                 <Badge cor={STATUS_COR[a.status]}>
@@ -81,8 +118,17 @@ export default function Aprovacoes() {
                 </Badge>
               </div>
 
+              {/* Solicitante */}
+              <div className="mt-2 flex items-center gap-1.5 text-[11px] text-ink-500">
+                <UserCircle size={13} />
+                Solicitado por{' '}
+                <span className="font-semibold text-ink-300">
+                  {a.solicitanteNome ?? 'equipe'}
+                </span>
+              </div>
+
               {a.feedback && (
-                <div className="mt-3 rounded-lg border border-white/[0.05] bg-ink-900 p-2.5 text-xs text-ink-300">
+                <div className="mt-2 rounded-lg border border-white/[0.05] bg-ink-900 p-2.5 text-xs text-ink-300">
                   <span className="font-semibold text-ink-400">Feedback: </span>
                   {a.feedback}
                 </div>
@@ -94,7 +140,7 @@ export default function Aprovacoes() {
                 </span>
                 <button
                   className="ml-auto text-ink-400 hover:text-gold-300"
-                  title="Copiar link de aprovação"
+                  title="Copiar link"
                   onClick={() => navigator.clipboard?.writeText(link)}
                 >
                   <Copy size={14} />
@@ -111,6 +157,11 @@ export default function Aprovacoes() {
             </div>
           )
         })}
+        {lista.length === 0 && (
+          <div className="panel col-span-full grid place-items-center py-12 text-sm text-ink-500">
+            Nenhuma aprovação com esses filtros.
+          </div>
+        )}
       </div>
     </div>
   )

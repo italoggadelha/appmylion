@@ -106,6 +106,15 @@ export default function Clientes() {
         {lista.map((c, i) => {
           const fase = faseById(c.faseAtual)
           const prog = progresso(c.id)
+          const ativos = [
+            ...new Map(
+              tarefas
+                .filter(
+                  (t) => t.clienteId === c.id && t.status !== 'concluida' && t.responsavelNome,
+                )
+                .map((t) => [t.responsavelId, t.responsavelNome!]),
+            ).values(),
+          ]
           return (
             <motion.div
               key={c.id}
@@ -118,9 +127,9 @@ export default function Clientes() {
                 className="panel panel-hover block p-4"
               >
                 <div className="flex items-start gap-3">
-                  <Avatar nome={c.empresa} size={44} />
+                  <Avatar nome={c.empresa} url={c.logoUrl} size={60} />
                   <div className="min-w-0 flex-1">
-                    <div className="truncate font-display text-sm font-bold text-ink-50">
+                    <div className="truncate font-display text-base font-bold text-ink-50">
                       {c.empresa}
                     </div>
                     <div className="truncate text-xs text-ink-500">
@@ -130,6 +139,33 @@ export default function Clientes() {
                   <Badge cor={STATUS_COR[c.status]}>
                     {STATUS_LABEL[c.status]}
                   </Badge>
+                </div>
+
+                {/* Equipe do projeto */}
+                <div className="mt-3 flex items-center gap-2">
+                  <span className="text-[10px] uppercase tracking-wide text-ink-500">
+                    Responsável
+                  </span>
+                  <Avatar nome={c.responsavelNome} size={22} />
+                  <span className="truncate text-xs font-medium text-ink-200">
+                    {c.responsavelNome}
+                  </span>
+                  {ativos.length > 0 && (
+                    <div className="ml-auto flex items-center">
+                      {ativos.slice(0, 4).map((nome, idx) => (
+                        <span
+                          key={nome}
+                          style={{ marginLeft: idx ? -8 : 0 }}
+                          className="ring-2 ring-ink-850"
+                        >
+                          <Avatar nome={nome} size={22} />
+                        </span>
+                      ))}
+                      <span className="ml-1.5 text-[10px] text-ink-500">
+                        ativos
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="mt-3 flex items-center gap-2 rounded-lg border border-white/[0.05] bg-ink-900 px-3 py-2">

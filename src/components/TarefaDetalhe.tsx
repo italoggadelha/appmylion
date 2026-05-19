@@ -60,6 +60,8 @@ export default function TarefaDetalhe() {
     iniciarTimer,
     pararTimer,
     definirTempo,
+    membroAtual,
+    aprovacoes,
   } = useData()
   const tarefa = tarefas.find((t) => t.id === tarefaAberta)
   const [anexos, setAnexos] = useState<Anexo[]>([])
@@ -85,6 +87,7 @@ export default function TarefaDetalhe() {
   const fase = faseById(tarefa.fase)
   const si = statusInfo(tarefa.status)
   const subFeitas = tarefa.subtarefas.filter((s) => s.concluida).length
+  const aprovDaTarefa = aprovacoes.filter((a) => a.tarefaId === tarefa.id)
 
   async function enviarAprovacao() {
     if (!tarefa) return
@@ -95,6 +98,7 @@ export default function TarefaDetalhe() {
         tarefaId: tarefa.id,
         titulo: tarefa.titulo,
         tipo: 'entrega',
+        solicitadoPor: membroAtual?.id,
       })
       await salvarTarefa({ id: tarefa.id, status: 'aguardando_aprovacao' })
       setLinkAprov(`${window.location.origin}/aprovar/${token}`)
@@ -258,6 +262,49 @@ export default function TarefaDetalhe() {
                   onMudou={recarregarAnexos}
                 />
               ))}
+
+              {/* Aprovações vinculadas à tarefa */}
+              {aprovDaTarefa.length > 0 && (
+                <div className="rounded-xl border border-white/[0.05] bg-ink-900/50 p-3">
+                  <div className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-ink-500">
+                    <Send size={12} /> Links de aprovação
+                  </div>
+                  <div className="space-y-1.5">
+                    {aprovDaTarefa.map((a) => {
+                      const url = `${window.location.origin}/aprovar/${a.token}`
+                      return (
+                        <div
+                          key={a.id}
+                          className="flex items-center gap-2 rounded-lg bg-ink-850 px-2.5 py-1.5"
+                        >
+                          <span
+                            className="h-2 w-2 shrink-0 rounded-full"
+                            style={{
+                              backgroundColor:
+                                a.status === 'aprovado'
+                                  ? '#10b981'
+                                  : a.status === 'reprovado'
+                                    ? '#ef4444'
+                                    : a.status === 'ajustes'
+                                      ? '#f59e0b'
+                                      : '#8b5cf6',
+                            }}
+                          />
+                          <span className="truncate font-mono text-[11px] text-ink-400">
+                            {url}
+                          </span>
+                          <button
+                            onClick={() => navigator.clipboard?.writeText(url)}
+                            className="ml-auto shrink-0 text-ink-400 hover:text-gold-300"
+                          >
+                            <Copy size={13} />
+                          </button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
 
               {linkAprov && (
                 <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">

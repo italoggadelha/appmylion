@@ -548,6 +548,7 @@ export async function criarCliente(c: Partial<Cliente>) {
       plano: c.plano,
       ticket: c.ticket ?? 0,
       responsavel_id: c.responsavelId || null,
+      logo_url: c.logoUrl || null,
     })
     .select()
     .single()

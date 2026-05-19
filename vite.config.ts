@@ -8,4 +8,16 @@ export default defineConfig({
     alias: { '@': path.resolve(__dirname, './src') },
   },
   server: { port: 5180 },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ['react', 'react-dom', 'react-router-dom'],
+          charts: ['recharts'],
+          motion: ['framer-motion'],
+          dnd: ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],
+        },
+      },
+    },
+  },
 })

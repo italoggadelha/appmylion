@@ -26,6 +26,7 @@ import {
 } from './repo'
 import type { Cliente, Membro, Tarefa } from './types'
 import type { FaseId } from '@/data/rugido'
+import { useAuth } from './auth'
 
 // ═══════════════════════════════════════════════════════════════════
 // Estado de dados global, carregado uma vez após o login.
@@ -51,6 +52,7 @@ interface DataCtx extends Snapshot {
   tarefaAberta: string | null
   abrirTarefa: (id: string) => void
   fecharTarefa: () => void
+  membroAtual: Membro | null
   // helpers
   clientePorId: (id: string) => Cliente | undefined
   membroPorId: (id: string) => Membro | undefined
@@ -72,6 +74,7 @@ const VAZIO: Snapshot = {
 }
 
 export function DataProvider({ children }: { children: ReactNode }) {
+  const { usuario } = useAuth()
   const [snap, setSnap] = useState<Snapshot>(VAZIO)
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
@@ -216,6 +219,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     tarefaAberta,
     abrirTarefa: (id) => setTarefaAberta(id),
     fecharTarefa: () => setTarefaAberta(null),
+    membroAtual:
+      snap.membros.find((m) => m.email === usuario?.email) ?? null,
     clientePorId: (id) => snap.clientes.find((c) => c.id === id),
     membroPorId: (id) => snap.membros.find((m) => m.id === id),
     tarefasDoCliente: (id) => snap.tarefas.filter((t) => t.clienteId === id),

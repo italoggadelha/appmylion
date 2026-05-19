@@ -228,18 +228,19 @@ function ColunaFaseTpl({
   }
 
   return (
-    <div className="flex w-64 shrink-0 flex-col">
+    <div className="flex min-w-0 flex-1 flex-col">
       <div
-        className="mb-2 rounded-xl border p-2.5"
+        className="mb-2 rounded-xl p-2.5 shadow-md"
         style={{
-          borderColor: `${fase.cor}40`,
-          background: `linear-gradient(180deg, ${fase.cor}1a, transparent)`,
+          background: `linear-gradient(135deg, ${fase.cor}, ${fase.cor}cc)`,
         }}
       >
         <div className="flex items-center gap-1.5">
           <span>{fase.simbolo}</span>
-          <span className="text-xs font-bold text-ink-50">{fase.nome}</span>
-          <span className="ml-auto rounded-full bg-ink-700 px-1.5 text-[10px] font-bold text-ink-400">
+          <span className="truncate font-display text-xs font-extrabold text-white">
+            {fase.nome}
+          </span>
+          <span className="ml-auto rounded-full bg-black/30 px-1.5 text-[10px] font-bold text-white">
             {templates.length}
           </span>
         </div>
@@ -296,7 +297,7 @@ function AbaFases() {
       </p>
 
       <DndContext sensors={sensors} onDragEnd={onDragEnd}>
-        <div className="mt-4 flex gap-3 overflow-x-auto pb-3">
+        <div className="mt-4 flex gap-2 pb-3">
           {FASES_RUGIDO.map((fase) => (
             <ColunaFaseTpl
               key={fase.id}

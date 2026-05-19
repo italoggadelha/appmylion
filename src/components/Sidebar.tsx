@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom'
+import Logo from './Logo'
 import {
   LayoutDashboard,
   Users,
@@ -67,16 +68,11 @@ function Item({
 export default function Sidebar() {
   return (
     <aside className="flex w-64 shrink-0 flex-col border-r border-white/[0.06] bg-ink-900/80 px-4 py-5 backdrop-blur">
-      {/* Marca */}
-      <div className="mb-7 flex items-center gap-3 px-2">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold-grad font-display text-xl font-extrabold text-ink-950">
-          R
-        </div>
-        <div className="leading-tight">
-          <div className="font-display text-base font-bold text-ink-50">RUGIDO</div>
-          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-gold-500">
-            Operating System
-          </div>
+      {/* Marca / cabeçalho */}
+      <div className="mb-6 px-2">
+        <Logo size="md" />
+        <div className="mt-1.5 text-[10px] font-semibold uppercase tracking-[0.22em] text-gold-600">
+          RUGIDO Operating System
         </div>
       </div>
 
@@ -97,10 +93,10 @@ export default function Sidebar() {
       </nav>
 
       {/* Rodapé */}
-      <div className="mt-4 rounded-xl border border-white/[0.06] bg-ink-850 p-3">
-        <div className="text-[11px] font-semibold text-ink-300">Método RUGIDO</div>
-        <div className="mt-1 text-[11px] leading-snug text-ink-500">
-          6 fases. Processo padronizado. Escala previsível.
+      <div className="mt-4 flex flex-col items-center gap-2 rounded-xl border border-white/[0.06] bg-ink-850 p-3">
+        <Logo size="sm" />
+        <div className="text-center text-[10px] leading-snug text-ink-600">
+          © {new Date().getFullYear()} MyLion Digital · Método RUGIDO
         </div>
       </div>
     </aside>

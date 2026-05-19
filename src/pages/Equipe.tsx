@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { Check, Minus } from 'lucide-react'
 import { useData } from '@/lib/data'
 import { PERFIL_LABEL, type Perfil } from '@/data/rugido'
 import { Avatar, Badge, PageHeader } from '@/components/ui'
+import ConvidarMembroModal from '@/components/ConvidarMembroModal'
 
 const PERFIL_COR: Record<Perfil, string> = {
   ceo: '#b8943f',
@@ -25,12 +27,22 @@ const MATRIZ: Record<Perfil, boolean[]> = {
 
 export default function Equipe() {
   const { membros, tarefas } = useData()
+  const [convidar, setConvidar] = useState(false)
   return (
     <div>
       <PageHeader
         titulo="Equipe & Acessos"
         subtitulo="Membros da operação e níveis de permissão"
-        acao={<button className="btn-gold">+ Convidar membro</button>}
+        acao={
+          <button className="btn-gold" onClick={() => setConvidar(true)}>
+            + Convidar membro
+          </button>
+        }
+      />
+
+      <ConvidarMembroModal
+        aberto={convidar}
+        onFechar={() => setConvidar(false)}
       />
 
       {/* Membros */}

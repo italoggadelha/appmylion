@@ -3,8 +3,10 @@ import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X } from 'lucide-react'
 import { useData } from '@/lib/data'
+import { uploadArquivo } from '@/lib/repo'
 import { SUPABASE_PRONTO } from '@/lib/supabase'
 import { FASES_RUGIDO } from '@/data/rugido'
+import { Avatar } from './ui'
 import type { ClienteStatus } from '@/lib/types'
 
 const STATUS: { v: ClienteStatus; l: string }[] = [
@@ -23,6 +25,8 @@ export default function NovoClienteModal({
   const { membros, novoCliente } = useData()
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState('')
+  const [foto, setFoto] = useState('')
+  const [enviandoFoto, setEnviandoFoto] = useState(false)
   const [f, setF] = useState({
     empresa: '',
     nome: '',
@@ -33,6 +37,17 @@ export default function NovoClienteModal({
     faseAtual: 'raiox',
     responsavelId: '',
   })
+
+  async function subirFoto(file: File) {
+    setEnviandoFoto(true)
+    try {
+      setFoto(await uploadArquivo(file))
+    } catch {
+      setErro('Falha ao enviar a foto.')
+    } finally {
+      setEnviandoFoto(false)
+    }
+  }
 
   function set<K extends keyof typeof f>(k: K, v: (typeof f)[K]) {
     setF((p) => ({ ...p, [k]: v }))
@@ -53,8 +68,10 @@ export default function NovoClienteModal({
         faseAtual: f.faseAtual as any,
         ticket: Number(f.ticket) || 0,
         responsavelId: f.responsavelId || undefined,
+        logoUrl: foto || undefined,
       })
       onFechar()
+      setFoto('')
       setF({
         empresa: '', nome: '', segmento: '', plano: 'Performance',
         ticket: '', status: 'onboarding', faseAtual: 'raiox', responsavelId: '',
@@ -98,6 +115,24 @@ export default function NovoClienteModal({
             </div>
 
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <div className="flex items-center gap-3 sm:col-span-2">
+                <Avatar nome={f.empresa || '?'} url={foto} size={56} />
+                <label className="btn-ghost cursor-pointer text-xs">
+                  {enviandoFoto
+                    ? 'Enviando…'
+                    : foto
+                      ? 'Trocar foto'
+                      : 'Foto de perfil'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) =>
+                      e.target.files?.[0] && subirFoto(e.target.files[0])
+                    }
+                  />
+                </label>
+              </div>
               <Campo label="Empresa *" full>
                 <input
                   className="input"
