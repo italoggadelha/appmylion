@@ -151,7 +151,14 @@ export async function getWppConexao(): Promise<WppConexao> {
     numero: data?.numero ?? undefined,
     nomeConta: data?.nome_conta ?? undefined,
     ultimaSync: data?.ultima_sync ?? undefined,
+    qr: data?.qr ?? undefined,
   }
+}
+
+/** Envia um comando para o gateway WhatsApp (conectar | desconectar). */
+export async function comandoWpp(comando: 'conectar' | 'desconectar') {
+  if (!SUPABASE_PRONTO) return
+  await supabase.from('wpp_conexao').update({ comando }).eq('id', 1)
 }
 
 export async function atualizarWppConexao(c: Partial<WppConexao>) {

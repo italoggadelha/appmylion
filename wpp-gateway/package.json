@@ -1,0 +1,15 @@
+{
+  "name": "rugido-wpp-gateway",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Gateway WhatsApp (QR-Code via Baileys) do RUGIDO OS",
+  "main": "index.js",
+  "scripts": { "start": "node index.js" },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.9",
+    "@supabase/supabase-js": "^2.45.4",
+    "qrcode": "^1.5.4",
+    "pino": "^9.5.0"
+  }
+}

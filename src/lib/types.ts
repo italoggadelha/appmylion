@@ -92,6 +92,7 @@ export interface WppConexao {
   numero?: string
   nomeConta?: string
   ultimaSync?: string
+  qr?: string
 }
 
 export interface NotifConfig {

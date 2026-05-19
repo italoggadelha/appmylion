@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   Wifi,
   WifiOff,
@@ -6,51 +6,49 @@ import {
   Power,
   QrCode,
   Smartphone,
-  AlertTriangle,
+  Info,
 } from 'lucide-react'
-import { getWppConexao, atualizarWppConexao } from '@/lib/chat'
+import { getWppConexao, comandoWpp } from '@/lib/chat'
 import type { WppConexao } from '@/lib/types'
 
 export default function AbaWhatsApp() {
   const [con, setCon] = useState<WppConexao>({ status: 'desconectado' })
-  const [mostrarQr, setMostrarQr] = useState(false)
-  const [carregando, setCarregando] = useState(false)
+  const [acaoCarregando, setAcaoCarregando] = useState(false)
+  const timer = useRef<ReturnType<typeof setInterval>>()
+
+  async function atualizar() {
+    try {
+      setCon(await getWppConexao())
+    } catch {
+      /* ignora */
+    }
+  }
 
   useEffect(() => {
-    getWppConexao().then(setCon).catch(() => {})
+    atualizar()
+    timer.current = setInterval(atualizar, 3000)
+    return () => clearInterval(timer.current)
   }, [])
 
   async function conectar() {
-    // Modo QR-Code: o pareamento real depende do gateway WhatsApp.
-    setCarregando(true)
-    const novo: WppConexao = {
-      status: 'conectado',
-      numero: '+55 11 99999-0000',
-      nomeConta: 'MyLion Digital',
-      ultimaSync: new Date().toISOString(),
-    }
-    await atualizarWppConexao(novo)
-    setCon(novo)
-    setMostrarQr(false)
-    setCarregando(false)
+    setAcaoCarregando(true)
+    await comandoWpp('conectar')
+    setTimeout(() => setAcaoCarregando(false), 2000)
   }
-
   async function desconectar() {
-    setCarregando(true)
-    await atualizarWppConexao({ status: 'desconectado' })
-    setCon({ status: 'desconectado' })
-    setCarregando(false)
+    setAcaoCarregando(true)
+    await comandoWpp('desconectar')
+    setTimeout(() => setAcaoCarregando(false), 2000)
   }
 
   const conectado = con.status === 'conectado'
 
   return (
     <div className="space-y-4">
-      {/* Aviso */}
-      <div className="flex items-start gap-2 rounded-xl border border-amber-500/20 bg-amber-500/[0.06] p-3 text-xs text-amber-300">
-        <AlertTriangle size={15} className="mt-0.5 shrink-0" />
-        Modo teste via QR-Code. Em breve integração oficial com a API WhatsApp
-        Business da Meta.
+      <div className="flex items-start gap-2 rounded-xl border border-fase-raiox/20 bg-fase-raiox/[0.06] p-3 text-xs text-fase-raiox">
+        <Info size={15} className="mt-0.5 shrink-0" />
+        Conexão via QR-Code (mesmo modelo do WhatsApp Web). A migração para a
+        API oficial do WhatsApp Business da Meta está planejada.
       </div>
 
       {/* Card de conexão */}
@@ -70,19 +68,32 @@ export default function AbaWhatsApp() {
               WhatsApp Business
             </div>
             <div
-              className="text-xs font-semibold"
-              style={{ color: conectado ? '#10b981' : '#ef4444' }}
+              className="text-xs font-semibold capitalize"
+              style={{
+                color: conectado
+                  ? '#10b981'
+                  : con.status === 'conectando'
+                    ? '#f59e0b'
+                    : '#ef4444',
+              }}
             >
-              {conectado ? 'Conectado' : 'Desconectado'}
+              {con.status}
             </div>
           </div>
+          <button
+            onClick={atualizar}
+            className="grid h-9 w-9 place-items-center rounded-lg text-ink-400 hover:bg-ink-700"
+            title="Atualizar"
+          >
+            <RefreshCw size={15} />
+          </button>
         </div>
 
         {conectado && (
           <div className="mt-4 grid grid-cols-2 gap-3 border-t border-white/[0.05] pt-4 sm:grid-cols-3">
-            <Info label="Número" valor={con.numero ?? '—'} />
-            <Info label="Conta" valor={con.nomeConta ?? '—'} />
-            <Info
+            <Info2 label="Número" valor={con.numero ?? '—'} />
+            <Info2 label="Conta" valor={con.nomeConta ?? '—'} />
+            <Info2
               label="Última sincronização"
               valor={
                 con.ultimaSync
@@ -95,73 +106,65 @@ export default function AbaWhatsApp() {
 
         <div className="mt-4 flex flex-wrap gap-2">
           {conectado ? (
-            <>
-              <button
-                onClick={conectar}
-                disabled={carregando}
-                className="btn-ghost"
-              >
-                <RefreshCw size={14} /> Reconectar
-              </button>
-              <button
-                onClick={desconectar}
-                disabled={carregando}
-                className="btn-ghost text-red-300"
-              >
-                <Power size={14} /> Desconectar
-              </button>
-            </>
+            <button
+              onClick={desconectar}
+              disabled={acaoCarregando}
+              className="btn-ghost text-red-300"
+            >
+              <Power size={14} /> Desconectar
+            </button>
           ) : (
             <button
-              onClick={() => setMostrarQr((v) => !v)}
+              onClick={conectar}
+              disabled={acaoCarregando}
               className="btn-gold"
             >
-              <QrCode size={15} /> Conectar via QR-Code
+              <RefreshCw
+                size={14}
+                className={acaoCarregando ? 'animate-spin' : ''}
+              />
+              {con.qr ? 'Gerar novo QR-Code' : 'Conectar via QR-Code'}
             </button>
           )}
         </div>
       </div>
 
-      {/* Área do QR */}
-      {mostrarQr && !conectado && (
+      {/* QR-Code */}
+      {!conectado && (
         <div className="panel flex flex-col items-center gap-3 p-6 text-center">
-          <div className="grid h-48 w-48 place-items-center rounded-xl bg-white p-3">
-            <div
-              className="h-full w-full"
-              style={{
-                backgroundImage:
-                  'repeating-conic-gradient(#0c0c0f 0% 25%, #fff 0% 50%)',
-                backgroundSize: '16px 16px',
-                borderRadius: 8,
-              }}
-            />
-          </div>
-          <div className="flex items-center gap-2 text-sm font-semibold text-ink-100">
-            <Smartphone size={16} /> Abra o WhatsApp → Aparelhos conectados →
-            Conectar aparelho
-          </div>
-          <p className="max-w-sm text-xs text-ink-500">
-            Aponte a câmera para o código. O pareamento real é feito pelo
-            gateway WhatsApp do servidor — assim que ele estiver ativo, este QR
-            fica válido.
-          </p>
-          <button onClick={conectar} disabled={carregando} className="btn-gold">
-            {carregando ? 'Conectando…' : 'Confirmar conexão (teste)'}
-          </button>
+          {con.qr ? (
+            <>
+              <img
+                src={con.qr}
+                alt="QR-Code WhatsApp"
+                className="h-56 w-56 rounded-xl bg-white p-2"
+              />
+              <div className="flex items-center gap-2 text-sm font-semibold text-ink-100">
+                <Smartphone size={16} />
+                WhatsApp → Aparelhos conectados → Conectar aparelho
+              </div>
+              <p className="max-w-sm text-xs text-ink-500">
+                Aponte a câmera do celular para o código. A tela atualiza
+                sozinha quando a conexão for concluída.
+              </p>
+            </>
+          ) : (
+            <div className="flex flex-col items-center gap-2 py-8 text-ink-500">
+              <QrCode size={40} />
+              <p className="text-sm">
+                {con.status === 'conectando'
+                  ? 'Gerando QR-Code…'
+                  : 'Clique em "Conectar via QR-Code" para gerar o código.'}
+              </p>
+            </div>
+          )}
         </div>
       )}
-
-      <div className="panel p-4 text-xs leading-relaxed text-ink-500">
-        <span className="font-semibold text-ink-300">Arquitetura:</span> o
-        módulo já está preparado para a migração à API oficial da Meta — basta
-        trocar o gateway de QR-Code pelo conector oficial, sem alterar o chat,
-        as automações ou o histórico de mensagens.
-      </div>
     </div>
   )
 }
 
-function Info({ label, valor }: { label: string; valor: string }) {
+function Info2({ label, valor }: { label: string; valor: string }) {
   return (
     <div>
       <div className="text-[10px] uppercase tracking-wide text-ink-500">
