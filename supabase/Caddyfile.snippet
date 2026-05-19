@@ -1,0 +1,16 @@
+# ── Bloco a adicionar no /etc/caddy/Caddyfile do VPS ────────────────
+# Serve o RUGIDO OS como SPA. O try_files garante que as rotas do
+# React Router (/clientes, /aprovar/...) funcionem com refresh direto.
+
+app.mylion.com.br {
+    root * /var/www/appmylion
+    encode gzip
+    try_files {path} /index.html
+    file_server
+
+    header {
+        X-Frame-Options "DENY"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+}
