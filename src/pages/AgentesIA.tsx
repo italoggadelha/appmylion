@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { Sparkles, ArrowRight } from 'lucide-react'
 import { PageHeader, Badge } from '@/components/ui'
+import AgenteChat, { type AgenteInfo } from '@/components/AgenteChat'
 
 interface Agente {
   nome: string
@@ -70,8 +72,10 @@ const AGENTES: Agente[] = [
 ]
 
 export default function AgentesIA() {
+  const [ativo, setAtivo] = useState<AgenteInfo | null>(null)
   return (
     <div>
+      <AgenteChat agente={ativo} onFechar={() => setAtivo(null)} />
       <PageHeader
         titulo="Agentes de IA"
         subtitulo="Inteligência especializada conectada ao contexto de cada cliente"
@@ -112,7 +116,10 @@ export default function AgentesIA() {
                 </span>
               ))}
             </div>
-            <button className="btn-ghost mt-4 w-full">
+            <button
+              className="btn-ghost mt-4 w-full"
+              onClick={() => setAtivo(a)}
+            >
               Conversar com o agente <ArrowRight size={14} />
             </button>
           </div>
@@ -121,9 +128,9 @@ export default function AgentesIA() {
 
       <div className="panel mt-4 flex items-center gap-3 p-4 text-sm text-ink-400">
         <Sparkles size={16} className="text-gold-400" />
-        Os agentes serão ligados via Edge Function ao Claude API na Fase 2,
-        lendo o histórico e os ativos de cada cliente para sugerir ações e gerar
-        entregas.
+        Os agentes já estão conectados ao Claude via Edge Function e leem o
+        contexto de cada cliente. Basta adicionar a chave ANTHROPIC_API_KEY no
+        servidor para ativar as respostas.
       </div>
     </div>
   )
