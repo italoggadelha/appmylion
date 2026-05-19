@@ -5,6 +5,8 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  useDraggable,
+  useDroppable,
   type DragEndEvent,
 } from '@dnd-kit/core'
 import {
@@ -436,14 +438,36 @@ function EnviarModal({
     </div>
   )
 }
-// ── Aba de modelos (construtor drag-and-drop) ───────────────────────
+// ── Construtor de formulário: arrastar tipos → soltar no formulário ─
 const TIPOS = [
-  { v: 'textarea', l: 'Resposta longa' },
-  { v: 'texto', l: 'Resposta curta' },
-  { v: 'opcao_unica', l: 'Escolha única' },
-  { v: 'opcao_multipla', l: 'Múltipla escolha' },
+  { v: 'textarea', l: 'Resposta longa', icon: '📝' },
+  { v: 'texto', l: 'Resposta curta', icon: '✏️' },
+  { v: 'opcao_unica', l: 'Escolha única', icon: '🔘' },
+  { v: 'opcao_multipla', l: 'Múltipla escolha', icon: '☑️' },
 ]
 
+// Card da paleta (arrastável)
+function PaletaCard({ tipo }: { tipo: (typeof TIPOS)[number] }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: 'pal-' + tipo.v,
+    data: { tipoNovo: tipo.v },
+  })
+  return (
+    <div
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      className={`flex cursor-grab items-center gap-2 rounded-xl border border-white/[0.08] bg-ink-850 p-3 text-sm font-semibold text-ink-100 active:cursor-grabbing ${
+        isDragging ? 'opacity-50' : 'hover:border-gold-500/40'
+      }`}
+    >
+      <span className="text-lg">{tipo.icon}</span>
+      {tipo.l}
+    </div>
+  )
+}
+
+// Card de pergunta no formulário (ordenável)
 function CampoCard({
   campo,
   indice,
@@ -460,9 +484,10 @@ function CampoCard({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.6 : 1,
+    opacity: isDragging ? 0.5 : 1,
   }
   const ehOpcao = campo.tipo === 'opcao_unica' || campo.tipo === 'opcao_multipla'
+  const tipoNome = TIPOS.find((t) => t.v === campo.tipo)
 
   return (
     <div
@@ -487,10 +512,10 @@ function CampoCard({
           value={campo.label}
           onChange={(e) => onChange({ label: e.target.value })}
         />
-        <button
-          onClick={onRemover}
-          className="text-ink-500 hover:text-red-400"
-        >
+        <span className="hidden text-[10px] text-ink-500 sm:block">
+          {tipoNome?.icon} {tipoNome?.l}
+        </span>
+        <button onClick={onRemover} className="text-ink-500 hover:text-red-400">
           <Trash2 size={14} />
         </button>
       </div>
@@ -536,15 +561,30 @@ function CampoCard({
             </div>
           ))}
           <button
-            onClick={() =>
-              onChange({ opcoes: [...(campo.opcoes ?? []), ''] })
-            }
+            onClick={() => onChange({ opcoes: [...(campo.opcoes ?? []), ''] })}
             className="text-[11px] font-semibold text-gold-400 hover:text-gold-300"
           >
             + adicionar opção
           </button>
         </div>
       )}
+    </div>
+  )
+}
+
+// Área onde se soltam as perguntas
+function Canvas({ children }: { children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id: 'canvas' })
+  return (
+    <div
+      ref={setNodeRef}
+      className={`min-h-[300px] rounded-xl border-2 border-dashed p-3 transition-colors ${
+        isOver
+          ? 'border-gold-500/50 bg-gold-500/[0.05]'
+          : 'border-white/[0.08] bg-ink-900/50'
+      }`}
+    >
+      {children}
     </div>
   )
 }
@@ -583,32 +623,154 @@ function ModelosTab({
     setCriando(false)
     setEditId(null)
   }
-
-  function addCampo() {
-    setCampos((c) => [
-      ...c,
-      { id: 'c' + Date.now(), label: '', tipo: 'textarea', opcoes: [] },
-    ])
-  }
   function upCampo(id: string, patch: Partial<CampoForm>) {
     setCampos((cs) => cs.map((c) => (c.id === id ? { ...c, ...patch } : c)))
   }
+
+  function novoCampo(tipo: string): CampoForm {
+    return { id: 'c' + Date.now() + Math.random().toString(36).slice(2, 6), label: '', tipo, opcoes: tipo.startsWith('opcao') ? ['', ''] : [] }
+  }
+
   function onDragEnd(e: DragEndEvent) {
     const { active, over } = e
-    if (!over || active.id === over.id) return
-    setCampos((cs) => {
-      const oi = cs.findIndex((c) => c.id === active.id)
-      const ni = cs.findIndex((c) => c.id === over.id)
-      return arrayMove(cs, oi, ni)
-    })
+    if (!over) return
+    const tipoNovo = active.data.current?.tipoNovo as string | undefined
+    if (tipoNovo) {
+      // Soltou um tipo da paleta → cria a pergunta
+      setCampos((cs) => {
+        const novo = novoCampo(tipoNovo)
+        const idx = cs.findIndex((c) => c.id === over.id)
+        if (idx === -1) return [...cs, novo]
+        const copia = [...cs]
+        copia.splice(idx + 1, 0, novo)
+        return copia
+      })
+      return
+    }
+    // Reordenando perguntas
+    if (active.id !== over.id) {
+      setCampos((cs) => {
+        const oi = cs.findIndex((c) => c.id === active.id)
+        const ni = cs.findIndex((c) => c.id === over.id)
+        if (oi === -1 || ni === -1) return cs
+        return arrayMove(cs, oi, ni)
+      })
+    }
   }
 
   async function salvar() {
     const validos = campos.filter((c) => c.label.trim())
-    if (!nome.trim() || validos.length === 0) return
-    await salvarFormulario({ id: editId ?? undefined, nome, descricao, campos: validos })
+    if (!nome.trim() || validos.length === 0) {
+      alert('Dê um nome ao formulário e adicione ao menos uma pergunta.')
+      return
+    }
+    await salvarFormulario({
+      id: editId ?? undefined,
+      nome,
+      descricao,
+      campos: validos,
+    })
     fechar()
     onMudou()
+  }
+
+  if (criando) {
+    return (
+      <div className="panel p-5">
+        <div className="flex items-center justify-between">
+          <h3 className="font-display text-sm font-bold text-ink-100">
+            {editId ? 'Editar formulário' : 'Novo formulário'}
+          </h3>
+          <button onClick={fechar} className="text-ink-400 hover:text-ink-100">
+            <X size={16} />
+          </button>
+        </div>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          <input
+            className="input"
+            placeholder="Nome do formulário"
+            value={nome}
+            onChange={(e) => setNome(e.target.value)}
+          />
+          <input
+            className="input"
+            placeholder="Descrição"
+            value={descricao}
+            onChange={(e) => setDescricao(e.target.value)}
+          />
+        </div>
+
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={onDragEnd}
+        >
+          <div className="mt-4 grid gap-4 lg:grid-cols-[200px_1fr]">
+            {/* Paleta */}
+            <div>
+              <div className="mb-2 text-[11px] font-bold uppercase tracking-wide text-ink-500">
+                Tipos de pergunta
+              </div>
+              <div className="space-y-2">
+                {TIPOS.map((t) => (
+                  <PaletaCard key={t.v} tipo={t} />
+                ))}
+              </div>
+              <p className="mt-2 text-[11px] leading-snug text-ink-600">
+                Arraste um tipo para o formulário ao lado.
+              </p>
+            </div>
+
+            {/* Canvas */}
+            <div>
+              <div className="mb-2 text-[11px] font-bold uppercase tracking-wide text-ink-500">
+                Formulário · {campos.length} pergunta(s)
+              </div>
+              <Canvas>
+                {campos.length === 0 ? (
+                  <div className="grid h-64 place-items-center text-center text-sm text-ink-600">
+                    <div>
+                      <FileQuestion size={28} className="mx-auto" />
+                      <p className="mt-2">
+                        Arraste os tipos de pergunta para cá
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <SortableContext
+                    items={campos.map((c) => c.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <div className="space-y-2">
+                      {campos.map((c, i) => (
+                        <CampoCard
+                          key={c.id}
+                          campo={c}
+                          indice={i}
+                          onChange={(patch) => upCampo(c.id, patch)}
+                          onRemover={() =>
+                            setCampos((cs) => cs.filter((x) => x.id !== c.id))
+                          }
+                        />
+                      ))}
+                    </div>
+                  </SortableContext>
+                )}
+              </Canvas>
+            </div>
+          </div>
+        </DndContext>
+
+        <div className="mt-4 flex justify-end gap-2">
+          <button onClick={fechar} className="btn-ghost">
+            Cancelar
+          </button>
+          <button onClick={salvar} className="btn-gold">
+            Salvar modelo
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -632,79 +794,12 @@ function ModelosTab({
           )}
         </button>
       ))}
-
-      {criando ? (
-        <div className="panel space-y-3 p-5">
-          <div className="flex items-center justify-between">
-            <h3 className="font-display text-sm font-bold text-ink-100">
-              {editId ? 'Editar formulário' : 'Novo formulário'}
-            </h3>
-            <button onClick={fechar} className="text-ink-400 hover:text-ink-100">
-              <X size={16} />
-            </button>
-          </div>
-          <input
-            className="input"
-            placeholder="Nome do formulário"
-            value={nome}
-            onChange={(e) => setNome(e.target.value)}
-          />
-          <input
-            className="input"
-            placeholder="Descrição"
-            value={descricao}
-            onChange={(e) => setDescricao(e.target.value)}
-          />
-
-          <p className="text-[11px] text-ink-500">
-            Arraste pelas alças <GripVertical size={11} className="inline" /> para
-            reordenar as perguntas.
-          </p>
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={onDragEnd}
-          >
-            <SortableContext
-              items={campos.map((c) => c.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              <div className="space-y-2">
-                {campos.map((c, i) => (
-                  <CampoCard
-                    key={c.id}
-                    campo={c}
-                    indice={i}
-                    onChange={(patch) => upCampo(c.id, patch)}
-                    onRemover={() =>
-                      setCampos((cs) => cs.filter((x) => x.id !== c.id))
-                    }
-                  />
-                ))}
-              </div>
-            </SortableContext>
-          </DndContext>
-
-          <button onClick={addCampo} className="btn-ghost w-full">
-            <Plus size={15} /> Adicionar pergunta
-          </button>
-          <div className="flex justify-end gap-2">
-            <button onClick={fechar} className="btn-ghost">
-              Cancelar
-            </button>
-            <button onClick={salvar} className="btn-gold">
-              Salvar modelo
-            </button>
-          </div>
-        </div>
-      ) : (
-        <button
-          onClick={abrirNovo}
-          className="panel panel-hover flex w-full items-center justify-center gap-2 py-4 text-sm font-semibold text-ink-300"
-        >
-          <Plus size={16} /> Novo modelo de formulário
-        </button>
-      )}
+      <button
+        onClick={abrirNovo}
+        className="panel panel-hover flex w-full items-center justify-center gap-2 py-4 text-sm font-semibold text-ink-300"
+      >
+        <Plus size={16} /> Novo modelo de formulário
+      </button>
     </div>
   )
 }
