@@ -67,6 +67,8 @@ const mapCliente = (r: any, nomes: Map<string, string>): Cliente => ({
   observacoes: r.observacoes ?? undefined,
   driveUrl: r.drive_url ?? undefined,
   mesesContrato: r.meses_contrato ?? undefined,
+  whatsapp: r.whatsapp ?? undefined,
+  email: r.email ?? undefined,
 })
 
 const mapTarefa = (r: any, nomes: Map<string, string>): Tarefa => ({
@@ -948,6 +950,8 @@ export async function criarCliente(c: Partial<Cliente>) {
       logo_url: c.logoUrl || null,
       drive_url: c.driveUrl || null,
       meses_contrato: c.mesesContrato || null,
+      whatsapp: c.whatsapp || null,
+      email: c.email || null,
     })
     .select()
     .single()

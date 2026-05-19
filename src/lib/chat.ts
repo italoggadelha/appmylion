@@ -97,6 +97,7 @@ export async function criarConversa(c: {
   tipo: string
   canal: string
   participantes?: string[]
+  telefone?: string
 }) {
   if (!SUPABASE_PRONTO) throw new Error('Supabase não configurado')
   const { data, error } = await supabase
@@ -107,6 +108,7 @@ export async function criarConversa(c: {
       tipo: c.tipo,
       canal: c.canal,
       participantes: c.participantes ?? [],
+      telefone: c.telefone ? c.telefone.replace(/\D/g, '') : null,
     })
     .select()
     .single()

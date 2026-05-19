@@ -19,6 +19,7 @@ import { criarAprovacao, gerarPlanoConteudo } from '@/lib/repo'
 import { SUPABASE_PRONTO } from '@/lib/supabase'
 import TarefaModal from '@/components/TarefaModal'
 import DocumentosCliente from '@/components/DocumentosCliente'
+import NovoClienteModal from '@/components/NovoClienteModal'
 import {
   FASES_RUGIDO,
   faseById,
@@ -39,6 +40,7 @@ export default function ClienteDetalhe() {
   const tarefas = cliente ? tarefasDoCliente(cliente.id) : []
   const [avancando, setAvancando] = useState(false)
   const [gerandoConteudo, setGerandoConteudo] = useState(false)
+  const [editandoCliente, setEditandoCliente] = useState(false)
   const tempoEquipe = tarefas.reduce((s, t) => s + t.tempoGastoSeg, 0)
 
   async function gerarConteudo() {
@@ -132,12 +134,28 @@ export default function ClienteDetalhe() {
               <Badge cor={cliente.status === 'ativo' ? '#10b981' : '#f59e0b'}>
                 {cliente.status}
               </Badge>
+              <button
+                onClick={() => setEditandoCliente(true)}
+                className="flex items-center gap-1 rounded-lg border border-white/[0.07] px-2 py-1 text-xs font-semibold text-ink-300 hover:border-gold-500/40 hover:text-gold-300"
+              >
+                <Pencil size={12} /> Editar
+              </button>
             </div>
             <p className="text-sm text-ink-400">
               {cliente.nome} · {cliente.segmento}
               {cliente.mesesContrato ? ` · contrato ${cliente.mesesContrato} meses` : ''}
             </p>
             <div className="mt-1.5 flex flex-wrap items-center gap-3">
+              {cliente.whatsapp && (
+                <a
+                  href={`https://wa.me/${cliente.whatsapp.replace(/\D/g, '')}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-400 hover:text-emerald-300"
+                >
+                  <MessageSquare size={13} /> WhatsApp {cliente.whatsapp}
+                </a>
+              )}
               {cliente.driveUrl && (
                 <a
                   href={cliente.driveUrl}
@@ -365,6 +383,12 @@ export default function ClienteDetalhe() {
         clienteId={cliente.id}
         faseInicial={faseSel}
         tarefa={modal.tarefa}
+      />
+
+      <NovoClienteModal
+        aberto={editandoCliente}
+        onFechar={() => setEditandoCliente(false)}
+        cliente={cliente}
       />
     </div>
   )

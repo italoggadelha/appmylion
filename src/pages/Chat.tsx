@@ -131,10 +131,18 @@ export default function Chat() {
   }
 
   async function novaConversa(clienteId: string) {
+    const cli = clientePorId(clienteId)
+    if (!cli?.whatsapp) {
+      alert(
+        'Este cliente não tem WhatsApp cadastrado. Edite o cliente e adicione o número.',
+      )
+      return
+    }
     const c = await criarConversa({
       clienteId,
       tipo: 'cliente',
       canal: 'whatsapp',
+      telefone: cli.whatsapp,
     })
     await recarregarConversas()
     setSelId(c.id)

@@ -45,6 +45,7 @@ interface DataCtx extends Snapshot {
   pararTimer: (id: string) => Promise<void>
   definirTempo: (id: string, seg: number) => Promise<void>
   novoCliente: (dados: Partial<Cliente>) => Promise<void>
+  editarCliente: (id: string, dados: Partial<Cliente>) => Promise<void>
   avancarFase: (clienteId: string, novaFase: FaseId) => Promise<number>
   alternarAutomacao: (id: string, ativa: boolean) => void
   automacaoAtiva: (chave: string) => boolean
@@ -177,6 +178,24 @@ export function DataProvider({ children }: { children: ReactNode }) {
     await recarregar()
   }
 
+  async function editarCliente(id: string, d: Partial<Cliente>) {
+    await atualizarCliente(id, {
+      nome: d.nome,
+      empresa: d.empresa,
+      segmento: d.segmento,
+      status: d.status,
+      plano: d.plano,
+      ticket: d.ticket ?? 0,
+      responsavel_id: d.responsavelId || null,
+      drive_url: d.driveUrl || null,
+      meses_contrato: d.mesesContrato || null,
+      logo_url: d.logoUrl || null,
+      whatsapp: d.whatsapp || null,
+      email: d.email || null,
+    })
+    await recarregar()
+  }
+
   async function avancarFase(clienteId: string, novaFase: FaseId) {
     await atualizarCliente(clienteId, { fase_atual: novaFase })
     let geradas = 0
@@ -213,6 +232,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     pararTimer,
     definirTempo,
     novoCliente,
+    editarCliente,
     avancarFase,
     alternarAutomacao,
     automacaoAtiva,

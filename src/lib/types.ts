@@ -29,6 +29,8 @@ export interface Cliente {
   observacoes?: string
   driveUrl?: string
   mesesContrato?: number
+  whatsapp?: string
+  email?: string
 }
 
 export interface Subtarefa {

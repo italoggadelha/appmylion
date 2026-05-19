@@ -164,7 +164,7 @@ setInterval(async () => {
     if (!conectado || !sock?.user) return
     const { data: pend } = await sb
       .from('mensagens')
-      .select('id, conteudo, conversas(telefone, canal)')
+      .select('id, conteudo, autor_nome, autor_funcao, conversas(telefone, canal)')
       .eq('enviada', false)
       .eq('do_cliente', false)
       .limit(20)
@@ -175,8 +175,14 @@ setInterval(async () => {
         continue
       }
       try {
+        // assinatura: nome e função de quem está respondendo
+        const assinatura =
+          '*' +
+          (msg.autor_nome || 'Equipe') +
+          (msg.autor_funcao ? ' — ' + msg.autor_funcao : '') +
+          '*\n'
         await sock.sendMessage(conv.telefone + '@s.whatsapp.net', {
-          text: msg.conteudo || '',
+          text: assinatura + (msg.conteudo || ''),
         })
         await sb.from('mensagens').update({ enviada: true }).eq('id', msg.id)
         log('Enviada para', conv.telefone)

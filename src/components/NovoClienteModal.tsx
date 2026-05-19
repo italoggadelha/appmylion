@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X } from 'lucide-react'
@@ -7,7 +7,7 @@ import { uploadArquivo } from '@/lib/repo'
 import { SUPABASE_PRONTO } from '@/lib/supabase'
 import { FASES_RUGIDO } from '@/data/rugido'
 import { Avatar } from './ui'
-import type { ClienteStatus } from '@/lib/types'
+import type { ClienteStatus, Cliente } from '@/lib/types'
 
 const STATUS: { v: ClienteStatus; l: string }[] = [
   { v: 'onboarding', l: 'Onboarding' },
@@ -15,30 +15,62 @@ const STATUS: { v: ClienteStatus; l: string }[] = [
   { v: 'pausado', l: 'Pausado' },
 ]
 
+const VAZIO = {
+  empresa: '',
+  nome: '',
+  segmento: '',
+  plano: 'Performance',
+  ticket: '',
+  status: 'onboarding' as ClienteStatus,
+  faseAtual: 'raiox',
+  responsavelId: '',
+  driveUrl: '',
+  mesesContrato: '6',
+  whatsapp: '',
+  email: '',
+}
+
 export default function NovoClienteModal({
   aberto,
   onFechar,
+  cliente,
 }: {
   aberto: boolean
   onFechar: () => void
+  cliente?: Cliente
 }) {
-  const { membros, novoCliente } = useData()
+  const { membros, novoCliente, editarCliente } = useData()
+  const editando = !!cliente
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState('')
   const [foto, setFoto] = useState('')
   const [enviandoFoto, setEnviandoFoto] = useState(false)
-  const [f, setF] = useState({
-    empresa: '',
-    nome: '',
-    segmento: '',
-    plano: 'Performance',
-    ticket: '',
-    status: 'onboarding' as ClienteStatus,
-    faseAtual: 'raiox',
-    responsavelId: '',
-    driveUrl: '',
-    mesesContrato: '6',
-  })
+  const [f, setF] = useState({ ...VAZIO })
+
+  useEffect(() => {
+    if (!aberto) return
+    if (cliente) {
+      setF({
+        empresa: cliente.empresa,
+        nome: cliente.nome ?? '',
+        segmento: cliente.segmento ?? '',
+        plano: cliente.plano ?? 'Performance',
+        ticket: String(cliente.ticket ?? ''),
+        status: cliente.status,
+        faseAtual: cliente.faseAtual,
+        responsavelId: cliente.responsavelId ?? '',
+        driveUrl: cliente.driveUrl ?? '',
+        mesesContrato: String(cliente.mesesContrato ?? '6'),
+        whatsapp: cliente.whatsapp ?? '',
+        email: cliente.email ?? '',
+      })
+      setFoto(cliente.logoUrl ?? '')
+    } else {
+      setF({ ...VAZIO })
+      setFoto('')
+    }
+    setErro('')
+  }, [aberto, cliente])
 
   async function subirFoto(file: File) {
     setEnviandoFoto(true)
@@ -65,7 +97,7 @@ export default function NovoClienteModal({
     setSalvando(true)
     try {
       if (!SUPABASE_PRONTO) throw new Error('Backend não configurado (modo demo).')
-      await novoCliente({
+      const dados = {
         ...f,
         faseAtual: f.faseAtual as any,
         ticket: Number(f.ticket) || 0,
@@ -73,14 +105,14 @@ export default function NovoClienteModal({
         logoUrl: foto || undefined,
         driveUrl: f.driveUrl || undefined,
         mesesContrato: Number(f.mesesContrato) || undefined,
-      })
+        whatsapp: f.whatsapp || undefined,
+        email: f.email || undefined,
+      }
+      if (editando) await editarCliente(cliente!.id, dados)
+      else await novoCliente(dados)
       onFechar()
       setFoto('')
-      setF({
-        empresa: '', nome: '', segmento: '', plano: 'Performance',
-        ticket: '', status: 'onboarding', faseAtual: 'raiox', responsavelId: '',
-        driveUrl: '', mesesContrato: '6',
-      })
+      setF({ ...VAZIO })
     } catch (e: any) {
       setErro(e?.message ?? 'Falha ao salvar.')
     } finally {
@@ -108,7 +140,7 @@ export default function NovoClienteModal({
           >
             <div className="flex items-center justify-between">
               <h2 className="font-display text-lg font-bold text-ink-50">
-                Novo cliente
+                {editando ? 'Editar cliente' : 'Novo cliente'}
               </h2>
               <button
                 type="button"
@@ -152,6 +184,23 @@ export default function NovoClienteModal({
                   value={f.nome}
                   onChange={(e) => set('nome', e.target.value)}
                   placeholder="Nome do responsável"
+                />
+              </Campo>
+              <Campo label="WhatsApp (com DDD)">
+                <input
+                  className="input"
+                  value={f.whatsapp}
+                  onChange={(e) => set('whatsapp', e.target.value)}
+                  placeholder="Ex.: 5511999990000"
+                />
+              </Campo>
+              <Campo label="E-mail">
+                <input
+                  className="input"
+                  type="email"
+                  value={f.email}
+                  onChange={(e) => set('email', e.target.value)}
+                  placeholder="cliente@email.com"
                 />
               </Campo>
               <Campo label="Segmento">
@@ -256,7 +305,11 @@ export default function NovoClienteModal({
                 Cancelar
               </button>
               <button type="submit" disabled={salvando} className="btn-gold">
-                {salvando ? 'Salvando…' : 'Criar cliente'}
+                {salvando
+                  ? 'Salvando…'
+                  : editando
+                    ? 'Salvar alterações'
+                    : 'Criar cliente'}
               </button>
             </div>
           </motion.form>
