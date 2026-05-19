@@ -116,6 +116,15 @@ export async function atualizarStatusTarefa(id: string, status: string) {
   if (error) throw error
 }
 
+export async function atualizarFaseTarefa(id: string, fase: string) {
+  if (!SUPABASE_PRONTO) return
+  const { error } = await supabase
+    .from('tarefas')
+    .update({ fase })
+    .eq('id', id)
+  if (error) throw error
+}
+
 export async function criarCliente(c: Partial<Cliente>) {
   if (!SUPABASE_PRONTO) throw new Error('Supabase não configurado')
   const { data, error } = await supabase

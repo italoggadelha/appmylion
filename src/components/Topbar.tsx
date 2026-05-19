@@ -1,10 +1,13 @@
+import { useState } from 'react'
 import { Search, Bell, Plus, LogOut } from 'lucide-react'
 import { Avatar } from './ui'
 import { useAuth } from '@/lib/auth'
+import NovoClienteModal from './NovoClienteModal'
 
 export default function Topbar() {
   const { usuario, sair } = useAuth()
   const nome = usuario?.nome ?? 'Operador'
+  const [modalAberto, setModalAberto] = useState(false)
 
   return (
     <header className="flex h-16 shrink-0 items-center gap-4 border-b border-white/[0.06] bg-ink-900/60 px-6 backdrop-blur">
@@ -20,10 +23,14 @@ export default function Topbar() {
       </div>
 
       <div className="flex items-center gap-2">
-        <button className="btn-gold">
+        <button className="btn-gold" onClick={() => setModalAberto(true)}>
           <Plus size={16} />
           Novo cliente
         </button>
+        <NovoClienteModal
+          aberto={modalAberto}
+          onFechar={() => setModalAberto(false)}
+        />
         <button className="relative grid h-10 w-10 place-items-center rounded-xl border border-white/[0.07] bg-ink-800 text-ink-300 transition-colors hover:text-ink-100">
           <Bell size={17} />
           <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-gold-400 ring-2 ring-ink-900" />

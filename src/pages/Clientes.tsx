@@ -7,6 +7,7 @@ import { FASES_RUGIDO, faseById } from '@/data/rugido'
 import type { ClienteStatus } from '@/lib/types'
 import { brl, dataCurta } from '@/lib/format'
 import { Avatar, Badge, PageHeader, ProgressBar } from '@/components/ui'
+import NovoClienteModal from '@/components/NovoClienteModal'
 
 const STATUS_COR: Record<ClienteStatus, string> = {
   ativo: '#10b981',
@@ -23,6 +24,7 @@ const STATUS_LABEL: Record<ClienteStatus, string> = {
 
 export default function Clientes() {
   const { clientes, tarefas } = useData()
+  const [modalAberto, setModalAberto] = useState(false)
   const [busca, setBusca] = useState('')
   const [filtroFase, setFiltroFase] = useState<string>('todos')
   const [filtroStatus, setFiltroStatus] = useState<string>('todos')
@@ -50,10 +52,15 @@ export default function Clientes() {
         titulo="Clientes"
         subtitulo={`${clientes.length} clientes na operação`}
         acao={
-          <button className="btn-gold">
+          <button className="btn-gold" onClick={() => setModalAberto(true)}>
             <Plus size={16} /> Novo cliente
           </button>
         }
+      />
+
+      <NovoClienteModal
+        aberto={modalAberto}
+        onFechar={() => setModalAberto(false)}
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">

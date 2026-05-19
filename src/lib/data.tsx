@@ -6,8 +6,14 @@ import {
   useCallback,
   type ReactNode,
 } from 'react'
-import { carregarTudo, atualizarStatusTarefa, type Snapshot } from './repo'
+import {
+  carregarTudo,
+  atualizarStatusTarefa,
+  atualizarFaseTarefa,
+  type Snapshot,
+} from './repo'
 import type { Cliente, Membro, Tarefa } from './types'
+import type { FaseId } from '@/data/rugido'
 
 // ═══════════════════════════════════════════════════════════════════
 // Estado de dados global, carregado uma vez após o login.
@@ -18,6 +24,7 @@ interface DataCtx extends Snapshot {
   erro: string | null
   recarregar: () => Promise<void>
   moverTarefa: (id: string, status: Tarefa['status']) => void
+  moverTarefaFase: (id: string, fase: FaseId) => void
   // helpers
   clientePorId: (id: string) => Cliente | undefined
   membroPorId: (id: string) => Membro | undefined
@@ -50,7 +57,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     recarregar()
   }, [recarregar])
 
-  // Atualização otimista do Kanban
+  // Atualizações otimistas do Kanban
   function moverTarefa(id: string, status: Tarefa['status']) {
     setSnap((s) => ({
       ...s,
@@ -59,12 +66,21 @@ export function DataProvider({ children }: { children: ReactNode }) {
     atualizarStatusTarefa(id, status).catch(() => recarregar())
   }
 
+  function moverTarefaFase(id: string, fase: FaseId) {
+    setSnap((s) => ({
+      ...s,
+      tarefas: s.tarefas.map((t) => (t.id === id ? { ...t, fase } : t)),
+    }))
+    atualizarFaseTarefa(id, fase).catch(() => recarregar())
+  }
+
   const valor: DataCtx = {
     ...snap,
     carregando,
     erro,
     recarregar,
     moverTarefa,
+    moverTarefaFase,
     clientePorId: (id) => snap.clientes.find((c) => c.id === id),
     membroPorId: (id) => snap.membros.find((m) => m.id === id),
     tarefasDoCliente: (id) => snap.tarefas.filter((t) => t.clienteId === id),

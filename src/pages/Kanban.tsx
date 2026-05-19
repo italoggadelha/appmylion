@@ -8,31 +8,25 @@ import {
   useSensors,
   type DragEndEvent,
 } from '@dnd-kit/core'
-import { MessageSquare, Paperclip } from 'lucide-react'
+import { MessageSquare, Paperclip, LayoutGrid, User, Users } from 'lucide-react'
 import { useData } from '@/lib/data'
 import {
+  FASES_RUGIDO,
   STATUS_LABEL,
   STATUS_COR,
   PRIORIDADE_COR,
-  faseById,
-  type TarefaStatus,
+  type FaseId,
 } from '@/data/rugido'
 import type { Tarefa } from '@/lib/types'
 import { Avatar, Badge, PageHeader } from '@/components/ui'
 
-const COLUNAS: TarefaStatus[] = [
-  'a_fazer',
-  'fazendo',
-  'aguardando_cliente',
-  'aguardando_aprovacao',
-  'concluida',
-]
+type Modo = 'geral' | 'cliente' | 'membro'
 
+// ── Card de tarefa (arrastável entre fases) ─────────────────────────
 function Card({ tarefa }: { tarefa: Tarefa }) {
   const { clientePorId } = useData()
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({ id: tarefa.id })
-  const fase = faseById(tarefa.fase)
   const cliente = clientePorId(tarefa.clienteId)
   const style = transform
     ? { transform: `translate3d(${transform.x}px,${transform.y}px,0)` }
@@ -49,20 +43,28 @@ function Card({ tarefa }: { tarefa: Tarefa }) {
       }`}
     >
       <div className="flex items-center gap-1.5">
-        <span
-          className="h-1.5 w-1.5 rounded-full"
-          style={{ backgroundColor: fase.cor }}
-        />
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-ink-500">
-          {cliente?.empresa}
+        <span className="truncate text-[10px] font-semibold uppercase tracking-wide text-ink-500">
+          {cliente?.empresa ?? '—'}
         </span>
         <span
-          className="ml-auto h-1.5 w-1.5 rounded-full"
+          className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full"
           style={{ backgroundColor: PRIORIDADE_COR[tarefa.prioridade] }}
+          title={`Prioridade ${tarefa.prioridade}`}
         />
       </div>
       <div className="mt-1.5 text-sm font-medium leading-snug text-ink-100">
         {tarefa.titulo}
+      </div>
+      <div className="mt-2 flex items-center gap-1.5">
+        <span
+          className="rounded-md px-1.5 py-0.5 text-[10px] font-semibold"
+          style={{
+            backgroundColor: `${STATUS_COR[tarefa.status]}1f`,
+            color: STATUS_COR[tarefa.status],
+          }}
+        >
+          {STATUS_LABEL[tarefa.status]}
+        </span>
       </div>
       <div className="mt-2.5 flex items-center justify-between">
         <div className="flex items-center gap-2 text-[11px] text-ink-500">
@@ -86,31 +88,48 @@ function Card({ tarefa }: { tarefa: Tarefa }) {
   )
 }
 
-function Coluna({
-  status,
+// ── Coluna = uma fase do RUGIDO ─────────────────────────────────────
+function ColunaFase({
+  fase,
   tarefas,
 }: {
-  status: TarefaStatus
+  fase: (typeof FASES_RUGIDO)[number]
   tarefas: Tarefa[]
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: status })
+  const { setNodeRef, isOver } = useDroppable({ id: fase.id })
+  const concluidas = tarefas.filter((t) => t.status === 'concluida').length
+
   return (
     <div className="flex w-72 shrink-0 flex-col">
-      <div className="mb-2 flex items-center gap-2 px-1">
-        <span
-          className="h-2.5 w-2.5 rounded-full"
-          style={{ backgroundColor: STATUS_COR[status] }}
-        />
-        <span className="text-sm font-semibold text-ink-100">
-          {STATUS_LABEL[status]}
-        </span>
-        <span className="rounded-full bg-ink-700 px-1.5 text-[11px] font-bold text-ink-300">
-          {tarefas.length}
-        </span>
+      <div
+        className="mb-2 rounded-xl border p-3"
+        style={{
+          borderColor: `${fase.cor}40`,
+          background: `linear-gradient(180deg, ${fase.cor}1a, transparent)`,
+        }}
+      >
+        <div className="flex items-center gap-2">
+          <span
+            className="grid h-7 w-7 place-items-center rounded-lg text-sm font-bold"
+            style={{ backgroundColor: `${fase.cor}26`, color: fase.cor }}
+          >
+            {fase.numero}
+          </span>
+          <span className="text-base">{fase.simbolo}</span>
+          <span className="rounded-full bg-ink-700 px-1.5 text-[11px] font-bold text-ink-300">
+            {tarefas.length}
+          </span>
+        </div>
+        <div className="mt-2 text-sm font-bold leading-tight text-ink-50">
+          {fase.nome}
+        </div>
+        <div className="text-[11px] text-ink-500">
+          {concluidas} concluída(s) · {fase.subtitulo}
+        </div>
       </div>
       <div
         ref={setNodeRef}
-        className={`flex min-h-[200px] flex-1 flex-col gap-2 rounded-xl border p-2 transition-colors ${
+        className={`flex min-h-[180px] flex-1 flex-col gap-2 rounded-xl border p-2 transition-colors ${
           isOver
             ? 'border-gold-500/40 bg-gold-500/[0.04]'
             : 'border-white/[0.05] bg-ink-900/50'
@@ -119,60 +138,114 @@ function Coluna({
         {tarefas.map((t) => (
           <Card key={t.id} tarefa={t} />
         ))}
+        {tarefas.length === 0 && (
+          <div className="grid flex-1 place-items-center py-6 text-[11px] text-ink-600">
+            Sem tarefas
+          </div>
+        )}
       </div>
     </div>
   )
 }
 
 export default function Kanban() {
-  const { tarefas, clientes, moverTarefa } = useData()
-  const [filtroCliente, setFiltroCliente] = useState('todos')
+  const { tarefas, clientes, membros, moverTarefaFase } = useData()
+  const [modo, setModo] = useState<Modo>('geral')
+  const [alvoCliente, setAlvoCliente] = useState('')
+  const [alvoMembro, setAlvoMembro] = useState('')
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   )
 
-  const visiveis = useMemo(
-    () =>
-      filtroCliente === 'todos'
-        ? tarefas
-        : tarefas.filter((t) => t.clienteId === filtroCliente),
-    [tarefas, filtroCliente],
-  )
+  // alvos padrão
+  const cliente = alvoCliente || clientes[0]?.id || ''
+  const membro = alvoMembro || membros[0]?.id || ''
+
+  const visiveis = useMemo(() => {
+    if (modo === 'cliente') return tarefas.filter((t) => t.clienteId === cliente)
+    if (modo === 'membro') return tarefas.filter((t) => t.responsavelId === membro)
+    return tarefas
+  }, [tarefas, modo, cliente, membro])
 
   function onDragEnd(e: DragEndEvent) {
-    const novoStatus = e.over?.id as TarefaStatus | undefined
-    if (!novoStatus || !COLUNAS.includes(novoStatus)) return
-    moverTarefa(e.active.id as string, novoStatus)
+    const novaFase = e.over?.id as FaseId | undefined
+    if (!novaFase || !FASES_RUGIDO.some((f) => f.id === novaFase)) return
+    const t = tarefas.find((x) => x.id === e.active.id)
+    if (t && t.fase !== novaFase) moverTarefaFase(t.id, novaFase)
   }
+
+  const MODOS: { id: Modo; label: string; icon: typeof Users }[] = [
+    { id: 'geral', label: 'Geral', icon: LayoutGrid },
+    { id: 'cliente', label: 'Por cliente', icon: User },
+    { id: 'membro', label: 'Por membro', icon: Users },
+  ]
 
   return (
     <div>
       <PageHeader
-        titulo="Kanban Inteligente"
-        subtitulo="Arraste tarefas entre os estágios da operação"
-        acao={
+        titulo="Kanban · Pipeline RUGIDO"
+        subtitulo="Arraste tarefas entre as 6 fases do método"
+      />
+
+      {/* Seletor de visão */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="flex rounded-xl border border-white/[0.07] bg-ink-850 p-1">
+          {MODOS.map((mo) => (
+            <button
+              key={mo.id}
+              onClick={() => setModo(mo.id)}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+                modo === mo.id
+                  ? 'bg-gold-grad text-ink-950'
+                  : 'text-ink-400 hover:text-ink-100'
+              }`}
+            >
+              <mo.icon size={14} />
+              {mo.label}
+            </button>
+          ))}
+        </div>
+
+        {modo === 'cliente' && (
           <select
             className="input w-auto"
-            value={filtroCliente}
-            onChange={(e) => setFiltroCliente(e.target.value)}
+            value={cliente}
+            onChange={(e) => setAlvoCliente(e.target.value)}
           >
-            <option value="todos">Todos os clientes</option>
             {clientes.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.empresa}
               </option>
             ))}
           </select>
-        }
-      />
+        )}
+        {modo === 'membro' && (
+          <select
+            className="input w-auto"
+            value={membro}
+            onChange={(e) => setAlvoMembro(e.target.value)}
+          >
+            {membros.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.nome}
+              </option>
+            ))}
+          </select>
+        )}
 
+        <span className="ml-auto text-xs text-ink-500">
+          {visiveis.length} tarefa(s) na visão
+        </span>
+      </div>
+
+      {/* Pipeline de fases */}
       <DndContext sensors={sensors} onDragEnd={onDragEnd}>
         <div className="flex gap-3 overflow-x-auto pb-4">
-          {COLUNAS.map((status) => (
-            <Coluna
-              key={status}
-              status={status}
-              tarefas={visiveis.filter((t) => t.status === status)}
+          {FASES_RUGIDO.map((fase) => (
+            <ColunaFase
+              key={fase.id}
+              fase={fase}
+              tarefas={visiveis.filter((t) => t.fase === fase.id)}
             />
           ))}
         </div>
