@@ -1,5 +1,15 @@
 import { useState, useEffect } from 'react'
-import { Copy, ExternalLink, Save, Globe, BarChart3, Plug, RefreshCw } from 'lucide-react'
+import {
+  Copy,
+  ExternalLink,
+  Save,
+  Globe,
+  BarChart3,
+  Plug,
+  RefreshCw,
+  Plus,
+  Trash2,
+} from 'lucide-react'
 import { useData } from '@/lib/data'
 import {
   getRelatorioCliente,
@@ -10,16 +20,77 @@ import {
 import { SUPABASE_PRONTO } from '@/lib/supabase'
 import { Avatar, Badge, PageHeader } from '@/components/ui'
 
-const CAMPOS_METRICA = [
-  { k: 'investimento', l: 'Investimento (R$)' },
-  { k: 'faturamento', l: 'Faturamento (R$)' },
-  { k: 'leads', l: 'Leads gerados' },
-  { k: 'cpl', l: 'Custo por lead (R$)' },
-  { k: 'impressoes', l: 'Impressões' },
-  { k: 'cliques', l: 'Cliques' },
-  { k: 'ctr', l: 'CTR (%)' },
-  { k: 'roas', l: 'ROAS (x)' },
+// Grupos de métricas numéricas
+const GRUPOS: { titulo: string; campos: { k: string; l: string }[] }[] = [
+  {
+    titulo: 'Financeiro',
+    campos: [
+      { k: 'investimento', l: 'Investimento (R$)' },
+      { k: 'faturamento', l: 'Faturamento (R$)' },
+    ],
+  },
+  {
+    titulo: 'Funil',
+    campos: [
+      { k: 'impressoes', l: 'Impressões' },
+      { k: 'cliques', l: 'Cliques' },
+      { k: 'visitas', l: 'Visitas' },
+      { k: 'leads', l: 'Leads' },
+      { k: 'vendas', l: 'Vendas' },
+    ],
+  },
+  {
+    titulo: 'Público por gênero',
+    campos: [
+      { k: 'homens', l: 'Homens (qtd)' },
+      { k: 'mulheres', l: 'Mulheres (qtd)' },
+    ],
+  },
+  {
+    titulo: 'Vendas por dia da semana',
+    campos: [
+      { k: 'dia_dom', l: 'Domingo' },
+      { k: 'dia_seg', l: 'Segunda' },
+      { k: 'dia_ter', l: 'Terça' },
+      { k: 'dia_qua', l: 'Quarta' },
+      { k: 'dia_qui', l: 'Quinta' },
+      { k: 'dia_sex', l: 'Sexta' },
+      { k: 'dia_sab', l: 'Sábado' },
+    ],
+  },
+  {
+    titulo: 'Vendas por região',
+    campos: [
+      { k: 'regiao_norte', l: 'Norte' },
+      { k: 'regiao_nordeste', l: 'Nordeste' },
+      { k: 'regiao_centrooeste', l: 'Centro-Oeste' },
+      { k: 'regiao_sudeste', l: 'Sudeste' },
+      { k: 'regiao_sul', l: 'Sul' },
+    ],
+  },
 ]
+const TODOS_CAMPOS = GRUPOS.flatMap((g) => g.campos.map((c) => c.k))
+
+const CAMPOS_CRIATIVO = [
+  { k: 'nome', l: 'Nome' },
+  { k: 'faturamento', l: 'Fat.' },
+  { k: 'investimento', l: 'Invest.' },
+  { k: 'impressoes', l: 'Impr.' },
+  { k: 'leads', l: 'Leads' },
+  { k: 'vendas', l: 'Vendas' },
+]
+
+const formVazio = () => ({
+  periodo: 'Maio 2026',
+  senha: 'mylion',
+  publicado: false,
+  metricas: {} as Record<string, string>,
+  observacoes: '',
+  criativos: [] as Record<string, string>[],
+  pagamentos: [] as { nome: string; valor: string }[],
+  metaToken: '',
+  metaAdAccount: '',
+})
 
 export default function Portal() {
   const { clientes } = useData()
@@ -28,16 +99,7 @@ export default function Portal() {
   const [carregando, setCarregando] = useState(false)
   const [salvando, setSalvando] = useState(false)
   const [sincronizando, setSincronizando] = useState(false)
-  const [form, setForm] = useState({
-    periodo: 'Maio 2026',
-    senha: 'mylion',
-    publicado: false,
-    metricas: {} as Record<string, string>,
-    observacoes: '',
-    criativos: [] as { nome: string; resultado: string }[],
-    metaToken: '',
-    metaAdAccount: '',
-  })
+  const [form, setForm] = useState(formVazio())
 
   useEffect(() => {
     if (!sel) return
@@ -46,52 +108,46 @@ export default function Portal() {
       .then((r) => {
         setRel(r)
         if (r) {
+          const m = r.metricas ?? {}
           setForm({
             periodo: r.periodo,
             senha: r.senha,
             publicado: r.publicado,
             metricas: Object.fromEntries(
-              CAMPOS_METRICA.map((c) => [c.k, String(r.metricas[c.k] ?? '')]),
+              TODOS_CAMPOS.map((k) => [k, String(m[k] ?? '')]),
             ),
-            observacoes: r.metricas.observacoes ?? '',
-            criativos: Array.isArray(r.metricas.criativos)
-              ? r.metricas.criativos
-              : [],
+            observacoes: m.observacoes ?? '',
+            criativos: Array.isArray(m.criativos) ? m.criativos : [],
+            pagamentos: Array.isArray(m.pagamentos) ? m.pagamentos : [],
             metaToken: r.metaToken ?? '',
             metaAdAccount: r.metaAdAccount ?? '',
           })
         } else {
-          setForm({
-            periodo: 'Maio 2026',
-            senha: 'mylion',
-            publicado: false,
-            metricas: {},
-            observacoes: '',
-            criativos: [],
-            metaToken: '',
-            metaAdAccount: '',
-          })
+          setForm(formVazio())
         }
       })
       .finally(() => setCarregando(false))
   }, [sel])
 
+  function montarMetricas() {
+    const m: Record<string, any> = {
+      observacoes: form.observacoes,
+      criativos: form.criativos.filter((c) => (c.nome ?? '').trim()),
+      pagamentos: form.pagamentos.filter((p) => p.nome.trim()),
+    }
+    for (const k of TODOS_CAMPOS) m[k] = Number(form.metricas[k]) || 0
+    return m
+  }
+
   async function salvar() {
-    if (!sel) return
-    if (!SUPABASE_PRONTO) return alert('Disponível com o backend conectado.')
+    if (!sel || !SUPABASE_PRONTO) return alert('Backend não conectado.')
     setSalvando(true)
     try {
-      const metricas: Record<string, any> = {
-        observacoes: form.observacoes,
-        criativos: form.criativos.filter((c) => c.nome.trim()),
-      }
-      for (const c of CAMPOS_METRICA)
-        metricas[c.k] = Number(form.metricas[c.k]) || 0
       const r = await salvarRelatorio(sel, {
         periodo: form.periodo,
         senha: form.senha,
         publicado: form.publicado,
-        metricas,
+        metricas: montarMetricas(),
         meta_token: form.metaToken || null,
         meta_ad_account: form.metaAdAccount || null,
       } as any)
@@ -105,14 +161,12 @@ export default function Portal() {
   }
 
   async function sincronizar() {
-    if (!sel || !SUPABASE_PRONTO) return
-    if (!form.metaToken || !form.metaAdAccount) {
+    if (!sel || !form.metaToken || !form.metaAdAccount) {
       alert('Preencha o token e a conta de anúncios da Meta.')
       return
     }
     setSincronizando(true)
     try {
-      // persiste a conexão antes de sincronizar
       await salvarRelatorio(sel, {
         meta_token: form.metaToken,
         meta_ad_account: form.metaAdAccount,
@@ -128,12 +182,12 @@ export default function Portal() {
       }
       setForm((f) => ({
         ...f,
-        metricas: Object.fromEntries(
-          CAMPOS_METRICA.map((c) => [
-            c.k,
-            String(res.metricas?.[c.k] ?? f.metricas[c.k] ?? ''),
-          ]),
-        ),
+        metricas: {
+          ...f.metricas,
+          ...Object.fromEntries(
+            Object.entries(res.metricas ?? {}).map(([k, v]) => [k, String(v)]),
+          ),
+        },
         criativos: res.criativos?.length ? res.criativos : f.criativos,
       }))
       alert('Métricas sincronizadas da Meta Ads. Revise e clique em Salvar.')
@@ -145,16 +199,18 @@ export default function Portal() {
   }
 
   const link = rel ? `${window.location.origin}/relatorio/${rel.token}` : ''
+  const setM = (k: string, v: string) =>
+    setForm((f) => ({ ...f, metricas: { ...f.metricas, [k]: v } }))
 
   return (
     <div>
       <PageHeader
         titulo="Portal do Cliente"
-        subtitulo="Relatórios de tráfego pago com acesso por senha"
+        subtitulo="Painel de resultados com acesso por senha"
       />
 
-      <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
-        {/* Lista de clientes */}
+      <div className="grid gap-4 lg:grid-cols-[260px_1fr]">
+        {/* Lista */}
         <div className="panel h-fit p-3">
           <div className="px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-ink-500">
             Clientes
@@ -168,7 +224,7 @@ export default function Portal() {
                   sel === c.id ? 'bg-gold-500/10' : 'hover:bg-ink-800'
                 }`}
               >
-                <Avatar nome={c.empresa} size={30} />
+                <Avatar nome={c.empresa} url={c.logoUrl} size={28} />
                 <span className="truncate text-sm text-ink-100">
                   {c.empresa}
                 </span>
@@ -182,7 +238,7 @@ export default function Portal() {
           <div className="panel grid place-items-center py-20 text-center text-sm text-ink-500">
             <div>
               <Globe size={28} className="mx-auto text-ink-600" />
-              <p className="mt-2">Selecione um cliente para configurar o relatório.</p>
+              <p className="mt-2">Selecione um cliente.</p>
             </div>
           </div>
         ) : carregando ? (
@@ -191,18 +247,16 @@ export default function Portal() {
           </div>
         ) : (
           <div className="space-y-4">
-            {/* Status + link */}
+            {/* Status */}
             <div className="panel p-5">
               <div className="flex items-center justify-between">
                 <h3 className="flex items-center gap-2 font-display text-sm font-bold text-ink-100">
-                  <BarChart3 size={16} className="text-gold-400" />
-                  Relatório de tráfego
+                  <BarChart3 size={16} className="text-gold-400" /> Relatório
                 </h3>
                 <Badge cor={form.publicado ? '#10b981' : '#4a4a57'}>
                   {form.publicado ? 'Publicado' : 'Rascunho'}
                 </Badge>
               </div>
-
               {rel && (
                 <div className="mt-3 flex items-center gap-2 rounded-lg border border-white/[0.05] bg-ink-900 px-2.5 py-2">
                   <span className="truncate font-mono text-[11px] text-ink-400">
@@ -219,7 +273,6 @@ export default function Portal() {
                   </a>
                 </div>
               )}
-
               <div className="mt-3 grid grid-cols-2 gap-3">
                 <Campo label="Período">
                   <input
@@ -228,7 +281,7 @@ export default function Portal() {
                     onChange={(e) => setForm((f) => ({ ...f, periodo: e.target.value }))}
                   />
                 </Campo>
-                <Campo label="Senha de acesso do cliente">
+                <Campo label="Senha do cliente">
                   <input
                     className="input"
                     value={form.senha}
@@ -247,26 +300,19 @@ export default function Portal() {
               </label>
             </div>
 
-            {/* Conexão Meta Ads */}
+            {/* Meta Ads */}
             <div className="panel p-5">
               <h3 className="flex items-center gap-2 font-display text-sm font-bold text-ink-100">
-                <Plug size={16} className="text-fase-demanda" />
-                Conexão Meta Ads
+                <Plug size={16} className="text-fase-demanda" /> Conexão Meta Ads
               </h3>
-              <p className="mt-0.5 text-xs text-ink-500">
-                Configure o acesso da Meta deste cliente para puxar as métricas
-                automaticamente.
-              </p>
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <Campo label="Token de acesso da Meta">
+                <Campo label="Token de acesso">
                   <input
                     type="password"
                     className="input"
                     placeholder="EAAB…"
                     value={form.metaToken}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, metaToken: e.target.value }))
-                    }
+                    onChange={(e) => setForm((f) => ({ ...f, metaToken: e.target.value }))}
                   />
                 </Campo>
                 <Campo label="ID da conta de anúncios">
@@ -285,95 +331,128 @@ export default function Portal() {
                 disabled={sincronizando}
                 className="btn-ghost mt-3"
               >
-                <RefreshCw
-                  size={14}
-                  className={sincronizando ? 'animate-spin' : ''}
-                />
+                <RefreshCw size={14} className={sincronizando ? 'animate-spin' : ''} />
                 {sincronizando ? 'Sincronizando…' : 'Sincronizar com a Meta Ads'}
               </button>
             </div>
 
-            {/* Métricas */}
-            <div className="panel p-5">
+            {/* Métricas em grupos */}
+            <div className="panel space-y-4 p-5">
               <h3 className="font-display text-sm font-bold text-ink-100">
-                Métricas de tráfego
+                Métricas do relatório
               </h3>
-              <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {CAMPOS_METRICA.map((c) => (
-                  <Campo key={c.k} label={c.l}>
-                    <input
-                      type="number"
-                      className="input"
-                      value={form.metricas[c.k] ?? ''}
-                      onChange={(e) =>
-                        setForm((f) => ({
-                          ...f,
-                          metricas: { ...f.metricas, [c.k]: e.target.value },
-                        }))
-                      }
-                    />
-                  </Campo>
-                ))}
-              </div>
-              <div className="mt-3">
-                <Campo label="Análise da equipe (texto para o cliente)">
-                  <textarea
-                    className="input min-h-[90px] resize-y"
-                    value={form.observacoes}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, observacoes: e.target.value }))
-                    }
-                  />
-                </Campo>
-              </div>
+              {GRUPOS.map((g) => (
+                <div key={g.titulo}>
+                  <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-ink-500">
+                    {g.titulo}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-5">
+                    {g.campos.map((c) => (
+                      <Campo key={c.k} label={c.l}>
+                        <input
+                          type="number"
+                          className="input py-1.5"
+                          value={form.metricas[c.k] ?? ''}
+                          onChange={(e) => setM(c.k, e.target.value)}
+                        />
+                      </Campo>
+                    ))}
+                  </div>
+                </div>
+              ))}
 
-              {/* Top 5 criativos */}
-              <div className="mt-4">
-                <label className="mb-1 block text-xs font-semibold text-ink-300">
-                  Top 5 criativos do período
-                </label>
-                <div className="space-y-2">
-                  {[0, 1, 2, 3, 4].map((i) => (
+              {/* Formas de pagamento */}
+              <div>
+                <div className="mb-1.5 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-ink-500">
+                  Formas de pagamento
+                  <button
+                    onClick={() =>
+                      setForm((f) => ({
+                        ...f,
+                        pagamentos: [...f.pagamentos, { nome: '', valor: '' }],
+                      }))
+                    }
+                    className="text-gold-400 hover:text-gold-300"
+                  >
+                    <Plus size={13} />
+                  </button>
+                </div>
+                <div className="space-y-1.5">
+                  {form.pagamentos.map((p, i) => (
                     <div key={i} className="flex gap-2">
-                      <span className="grid h-9 w-7 shrink-0 place-items-center rounded-lg bg-ink-800 text-xs font-bold text-ink-500">
-                        {i + 1}
-                      </span>
                       <input
-                        className="input flex-1"
-                        placeholder="Nome / descrição do criativo"
-                        value={form.criativos[i]?.nome ?? ''}
+                        className="input flex-1 py-1.5"
+                        placeholder="Ex.: Pix, Cartão…"
+                        value={p.nome}
                         onChange={(e) => {
-                          const cs = [...form.criativos]
-                          cs[i] = {
-                            nome: e.target.value,
-                            resultado: cs[i]?.resultado ?? '',
-                          }
-                          setForm((f) => ({ ...f, criativos: cs }))
+                          const ps = [...form.pagamentos]
+                          ps[i] = { ...ps[i], nome: e.target.value }
+                          setForm((f) => ({ ...f, pagamentos: ps }))
                         }}
                       />
                       <input
-                        className="input w-40"
-                        placeholder="Resultado (ex.: 42 leads)"
-                        value={form.criativos[i]?.resultado ?? ''}
+                        type="number"
+                        className="input w-32 py-1.5"
+                        placeholder="R$"
+                        value={p.valor}
                         onChange={(e) => {
-                          const cs = [...form.criativos]
-                          cs[i] = {
-                            nome: cs[i]?.nome ?? '',
-                            resultado: e.target.value,
-                          }
-                          setForm((f) => ({ ...f, criativos: cs }))
+                          const ps = [...form.pagamentos]
+                          ps[i] = { ...ps[i], valor: e.target.value }
+                          setForm((f) => ({ ...f, pagamentos: ps }))
                         }}
                       />
+                      <button
+                        onClick={() =>
+                          setForm((f) => ({
+                            ...f,
+                            pagamentos: f.pagamentos.filter((_, x) => x !== i),
+                          }))
+                        }
+                        className="grid h-9 w-9 place-items-center rounded-lg text-ink-500 hover:text-red-400"
+                      >
+                        <Trash2 size={14} />
+                      </button>
                     </div>
                   ))}
                 </div>
               </div>
 
-              <button
-                onClick={salvar}
-                disabled={salvando}
-                className="btn-gold mt-4"
-              >
+              {/* Top criativos */}
+              <div>
+                <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-ink-500">
+                  Top 5 criativos
+                </div>
+                <div className="space-y-1.5">
+                  {[0, 1, 2, 3, 4].map((i) => (
+                    <div key={i} className="flex gap-1.5">
+                      {CAMPOS_CRIATIVO.map((cc) => (
+                        <input
+                          key={cc.k}
+                          type={cc.k === 'nome' ? 'text' : 'number'}
+                          className={`input py-1.5 ${cc.k === 'nome' ? 'flex-1' : 'w-20'}`}
+                          placeholder={cc.l}
+                          value={form.criativos[i]?.[cc.k] ?? ''}
+                          onChange={(e) => {
+                            const cs = [...form.criativos]
+                            cs[i] = { ...(cs[i] ?? {}), [cc.k]: e.target.value }
+                            setForm((f) => ({ ...f, criativos: cs }))
+                          }}
+                        />
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <Campo label="Análise da equipe (texto para o cliente)">
+                <textarea
+                  className="input min-h-[80px] resize-y"
+                  value={form.observacoes}
+                  onChange={(e) => setForm((f) => ({ ...f, observacoes: e.target.value }))}
+                />
+              </Campo>
+
+              <button onClick={salvar} disabled={salvando} className="btn-gold">
                 <Save size={15} />
                 {salvando ? 'Salvando…' : 'Salvar relatório'}
               </button>

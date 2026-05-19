@@ -3,26 +3,26 @@ import { useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   Lock,
-  TrendingUp,
   Wallet,
-  Users,
-  Target,
-  Eye,
-  MousePointerClick,
+  TrendingUp,
+  Sparkles,
   Flame,
   ShieldCheck,
   BarChart3,
   Route,
   Trophy,
   Check,
+  CreditCard,
 } from 'lucide-react'
 import { brl } from '@/lib/format'
 import { FASES_RUGIDO } from '@/data/rugido'
+import BrasilMapa from '@/components/BrasilMapa'
 
 const FN = `${import.meta.env.VITE_SUPABASE_URL ?? ''}/functions/v1/relatorio-publico`
 const ANON = import.meta.env.VITE_SUPABASE_ANON_KEY ?? ''
 const H = { apikey: ANON, Authorization: `Bearer ${ANON}` }
 const num = (v: any) => Number(v) || 0
+const pct = (a: number, b: number) => (b ? `${((a / b) * 100).toFixed(1)}%` : '—')
 
 interface FaseProg {
   fase: string
@@ -75,8 +75,7 @@ export default function RelatorioPublico() {
       }
       const d = await r.json()
       setDados(d)
-      const temTrafego =
-        num(d.metricas.investimento) > 0 || num(d.metricas.leads) > 0
+      const temTrafego = num(d.metricas.investimento) > 0 || num(d.metricas.leads) > 0
       setAba(temTrafego ? 'resultados' : 'projeto')
       setEstado('ok')
     } catch {
@@ -138,20 +137,13 @@ export default function RelatorioPublico() {
       </Centro>
     )
 
-  // ── Painel completo (fullscreen) ────────────────────────────────
   const d = dados!
-  const m = d.metricas
-  const temTrafego = num(m.investimento) > 0 || num(m.leads) > 0
-  const criativos: { nome: string; resultado: string }[] = Array.isArray(
-    m.criativos,
-  )
-    ? m.criativos
-    : []
+  const temTrafego =
+    num(d.metricas.investimento) > 0 || num(d.metricas.leads) > 0
 
   return (
     <div className="min-h-screen">
-      {/* Topo */}
-      <header className="sticky top-0 z-10 border-b border-white/[0.06] bg-ink-900/85 backdrop-blur">
+      <header className="sticky top-0 z-10 border-b border-white/[0.06] bg-ink-900/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3">
           <div>
             <div className="text-[10px] uppercase tracking-[0.2em] text-gold-500">
@@ -168,14 +160,13 @@ export default function RelatorioPublico() {
             <Marca />
           </div>
         </div>
-        {/* Abas */}
         <div className="mx-auto flex max-w-6xl gap-1 px-5">
           {temTrafego && (
             <Aba
               ativa={aba === 'resultados'}
               onClick={() => setAba('resultados')}
               icon={BarChart3}
-              label="Resultados de Tráfego"
+              label="Resultados"
             />
           )}
           <Aba
@@ -189,7 +180,7 @@ export default function RelatorioPublico() {
 
       <main className="mx-auto max-w-6xl px-5 py-6">
         {aba === 'resultados' && temTrafego ? (
-          <AbaResultados m={m} criativos={criativos} progresso={d.progresso} />
+          <AbaResultados m={d.metricas} progresso={d.progresso} />
         ) : (
           <AbaProjeto progresso={d.progresso} semTrafego={!temTrafego} />
         )}
@@ -204,122 +195,82 @@ export default function RelatorioPublico() {
   )
 }
 
-// ── Aba: Resultados de tráfego ──────────────────────────────────────
+// ════════════════════════════════════════════════════════════════════
+// ABA RESULTADOS — dashboard premium
+// ════════════════════════════════════════════════════════════════════
 function AbaResultados({
   m,
-  criativos,
   progresso,
 }: {
   m: Record<string, any>
-  criativos: { nome: string; resultado: string }[]
   progresso: FaseProg[]
 }) {
-  const KPIS = [
-    { l: 'Investimento', v: brl(num(m.investimento)), icon: Wallet, c: '#b8943f' },
-    { l: 'Faturamento', v: brl(num(m.faturamento)), icon: TrendingUp, c: '#10b981' },
-    { l: 'Leads', v: String(num(m.leads)), icon: Users, c: '#5b8def' },
-    { l: 'Custo por lead', v: brl(num(m.cpl)), icon: Target, c: '#ec4899' },
-    { l: 'CTR', v: `${num(m.ctr)}%`, icon: MousePointerClick, c: '#f59e0b' },
-    { l: 'ROAS', v: `${num(m.roas)}x`, icon: Flame, c: '#ef4444' },
-  ]
-  const funil = [
-    { l: 'Impressões', v: num(m.impressoes), c: '#5b8def' },
-    { l: 'Cliques', v: num(m.cliques), c: '#8b5cf6' },
-    { l: 'Leads', v: num(m.leads), c: '#ec4899' },
-    { l: 'Conversões', v: num(m.conversoes), c: '#10b981' },
-  ]
-  const maxFunil = Math.max(...funil.map((f) => f.v), 1)
+  const investimento = num(m.investimento)
+  const faturamento = num(m.faturamento)
+  const lucro = faturamento - investimento
+  const roas = investimento ? faturamento / investimento : 0
 
   return (
     <div className="space-y-5">
-      {/* KPIs */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-        {KPIS.map((k) => (
-          <div key={k.l} className="panel p-4">
-            <k.icon size={18} style={{ color: k.c }} />
-            <div className="mt-2 font-display text-xl font-bold text-ink-50">
-              {k.v}
-            </div>
-            <div className="text-[11px] text-ink-500">{k.l}</div>
-          </div>
-        ))}
+      {/* Hero */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Hero
+          label="Faturamento"
+          valor={brl(faturamento)}
+          icon={TrendingUp}
+          cor="#10b981"
+          destaque
+        />
+        <Hero
+          label="Investimento total"
+          valor={brl(investimento)}
+          icon={Wallet}
+          cor="#b8943f"
+        />
+        <Hero
+          label="Lucro (− investimento)"
+          valor={brl(lucro)}
+          icon={Sparkles}
+          cor={lucro >= 0 ? '#10b981' : '#ef4444'}
+          destaque
+        />
+        <Hero
+          label="ROAS"
+          valor={`${roas.toFixed(2)}x`}
+          icon={Flame}
+          cor="#ef4444"
+        />
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-2">
-        {/* Funil */}
-        <div className="panel p-6">
+      <Funil m={m} investimento={investimento} />
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Genero m={m} />
+        <Pagamentos m={m} />
+      </div>
+
+      <CriativosTabela m={m} />
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <DiasSemana m={m} />
+        <div className="panel p-5">
           <h2 className="font-display text-sm font-bold text-ink-100">
-            Funil de conversão
+            Vendas por região do Brasil
           </h2>
-          <div className="mt-5 space-y-2">
-            {funil.map((f, i) => {
-              const larg = Math.max(18, (f.v / maxFunil) * 100)
-              const taxa =
-                i > 0 && funil[i - 1].v
-                  ? ((f.v / funil[i - 1].v) * 100).toFixed(1) + '%'
-                  : null
-              return (
-                <div key={f.l}>
-                  {taxa && (
-                    <div className="py-0.5 text-center text-[10px] text-ink-600">
-                      ↓ {taxa}
-                    </div>
-                  )}
-                  <div
-                    className="mx-auto flex items-center justify-between rounded-lg px-4 py-3 text-white"
-                    style={{
-                      width: `${larg}%`,
-                      background: `linear-gradient(135deg, ${f.c}, ${f.c}bb)`,
-                    }}
-                  >
-                    <span className="text-xs font-semibold">{f.l}</span>
-                    <span className="font-display text-sm font-bold">
-                      {f.v.toLocaleString('pt-BR')}
-                    </span>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Top criativos */}
-        <div className="panel p-6">
-          <h2 className="flex items-center gap-2 font-display text-sm font-bold text-ink-100">
-            <Trophy size={15} className="text-gold-300" /> Top 5 criativos
-          </h2>
-          <div className="mt-4 space-y-2">
-            {criativos.length === 0 && (
-              <p className="text-xs text-ink-500">
-                Os melhores criativos do período aparecerão aqui.
-              </p>
-            )}
-            {criativos.slice(0, 5).map((c, i) => (
-              <div
-                key={i}
-                className="flex items-center gap-3 rounded-xl border border-white/[0.05] bg-ink-850 p-2.5"
-              >
-                <span
-                  className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-xs font-extrabold text-ink-950"
-                  style={{
-                    background: ['#e7cc83', '#c9c9d2', '#c79a3a', '#4a4a57', '#4a4a57'][i],
-                  }}
-                >
-                  {i + 1}
-                </span>
-                <span className="min-w-0 flex-1 truncate text-sm text-ink-100">
-                  {c.nome}
-                </span>
-                <span className="text-xs font-semibold text-gold-300">
-                  {c.resultado}
-                </span>
-              </div>
-            ))}
+          <div className="mt-2">
+            <BrasilMapa
+              dados={{
+                norte: num(m.regiao_norte),
+                nordeste: num(m.regiao_nordeste),
+                centrooeste: num(m.regiao_centrooeste),
+                sudeste: num(m.regiao_sudeste),
+                sul: num(m.regiao_sul),
+              }}
+            />
           </div>
         </div>
       </div>
 
-      {/* Resumo das fases */}
       <ResumoFases progresso={progresso} />
 
       {m.observacoes && (
@@ -336,7 +287,356 @@ function AbaResultados({
   )
 }
 
-// ── Aba: Andamento do projeto ───────────────────────────────────────
+function Hero({
+  label,
+  valor,
+  icon: Icon,
+  cor,
+  destaque,
+}: {
+  label: string
+  valor: string
+  icon: typeof Wallet
+  cor: string
+  destaque?: boolean
+}) {
+  return (
+    <div
+      className="panel relative overflow-hidden p-5"
+      style={
+        destaque
+          ? { background: `linear-gradient(150deg, ${cor}1f, transparent 70%)` }
+          : undefined
+      }
+    >
+      <div
+        className="grid h-10 w-10 place-items-center rounded-xl"
+        style={{ backgroundColor: `${cor}22`, color: cor }}
+      >
+        <Icon size={19} />
+      </div>
+      <div className="mt-3 font-display text-2xl font-extrabold text-ink-50">
+        {valor}
+      </div>
+      <div className="text-xs text-ink-400">{label}</div>
+    </div>
+  )
+}
+
+// ── Funil de conversão ──────────────────────────────────────────────
+function Funil({
+  m,
+  investimento,
+}: {
+  m: Record<string, any>
+  investimento: number
+}) {
+  const etapas = [
+    { l: 'Impressões', v: num(m.impressoes), c: '#5b8def' },
+    { l: 'Cliques', v: num(m.cliques), c: '#6d8fe8' },
+    { l: 'Visitas', v: num(m.visitas), c: '#8b5cf6' },
+    { l: 'Leads', v: num(m.leads), c: '#ec4899' },
+    { l: 'Vendas', v: num(m.vendas), c: '#10b981' },
+  ]
+  const largs = [100, 84, 68, 52, 36]
+  const topo = etapas[0].v || 1
+
+  return (
+    <div className="panel p-6">
+      <h2 className="font-display text-sm font-bold text-ink-100">
+        Funil de conversão
+      </h2>
+      <p className="text-xs text-ink-500">
+        Conversão entre etapas e custo de cada ação
+      </p>
+      <div className="mt-5 space-y-1.5">
+        {etapas.map((e, i) => {
+          const ant = i > 0 ? etapas[i - 1].v : e.v
+          const custo = e.v ? investimento / e.v : 0
+          return (
+            <div key={e.l}>
+              {i > 0 && (
+                <div className="py-0.5 text-center text-[10px] text-ink-500">
+                  ↓ {pct(e.v, ant)} da etapa anterior
+                </div>
+              )}
+              <div
+                className="mx-auto flex items-center gap-3 rounded-xl px-4 py-3 text-white"
+                style={{
+                  width: `${largs[i]}%`,
+                  background: `linear-gradient(135deg, ${e.c}, ${e.c}bb)`,
+                }}
+              >
+                <span className="text-xs font-bold uppercase tracking-wide opacity-90">
+                  {e.l}
+                </span>
+                <span className="ml-auto font-display text-lg font-extrabold">
+                  {e.v.toLocaleString('pt-BR')}
+                </span>
+                <span className="hidden text-right text-[10px] leading-tight opacity-90 sm:block">
+                  {brl(custo)}
+                  <br />
+                  por ação
+                </span>
+                <span className="rounded-md bg-black/25 px-1.5 py-0.5 text-[10px] font-bold">
+                  {pct(e.v, topo)} do topo
+                </span>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── Gênero ──────────────────────────────────────────────────────────
+function Genero({ m }: { m: Record<string, any> }) {
+  const h = num(m.homens)
+  const mu = num(m.mulheres)
+  const tot = h + mu || 1
+  const ph = Math.round((h / tot) * 100)
+  const pm = 100 - ph
+
+  return (
+    <div className="panel p-5">
+      <h2 className="font-display text-sm font-bold text-ink-100">
+        Público por gênero
+      </h2>
+      <div className="mt-4 flex items-end justify-center gap-10">
+        <div className="flex flex-col items-center">
+          <svg viewBox="0 0 24 32" className="h-16 w-16" fill="#5b8def">
+            <circle cx="12" cy="5" r="4" />
+            <path d="M7 12h10l2 11h-3l-1 9h-2l-1-9h-1l-1 9H7l-1-9H3z" />
+          </svg>
+          <div className="mt-1 font-display text-xl font-extrabold text-ink-50">
+            {ph}%
+          </div>
+          <div className="text-[11px] text-ink-500">Homens · {h}</div>
+        </div>
+        <div className="flex flex-col items-center">
+          <svg viewBox="0 0 24 32" className="h-16 w-16" fill="#ec4899">
+            <circle cx="12" cy="5" r="4" />
+            <path d="M12 10c3 0 5 2 6 7l1 6h-3l1 9h-10l1-9H6l1-6c1-5 3-7 5-7z" />
+          </svg>
+          <div className="mt-1 font-display text-xl font-extrabold text-ink-50">
+            {pm}%
+          </div>
+          <div className="text-[11px] text-ink-500">Mulheres · {mu}</div>
+        </div>
+      </div>
+      <div className="mt-4 flex h-3 overflow-hidden rounded-full">
+        <div style={{ width: `${ph}%`, background: '#5b8def' }} />
+        <div style={{ width: `${pm}%`, background: '#ec4899' }} />
+      </div>
+    </div>
+  )
+}
+
+// ── Formas de pagamento ─────────────────────────────────────────────
+function Pagamentos({ m }: { m: Record<string, any> }) {
+  const lista: { nome: string; valor: any }[] = Array.isArray(m.pagamentos)
+    ? m.pagamentos
+    : []
+  const total = lista.reduce((s, p) => s + num(p.valor), 0) || 1
+
+  return (
+    <div className="panel p-5">
+      <h2 className="flex items-center gap-2 font-display text-sm font-bold text-ink-100">
+        <CreditCard size={15} className="text-gold-300" /> Formas de pagamento
+      </h2>
+      <div className="mt-3 space-y-2.5">
+        {lista.length === 0 && (
+          <p className="text-xs text-ink-500">Sem dados de pagamento.</p>
+        )}
+        {lista.map((p, i) => (
+          <div key={i}>
+            <div className="flex justify-between text-xs">
+              <span className="text-ink-200">{p.nome}</span>
+              <span className="font-semibold text-ink-100">
+                {brl(num(p.valor))}
+              </span>
+            </div>
+            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-ink-700">
+              <div
+                className="h-full rounded-full bg-gold-grad"
+                style={{ width: `${(num(p.valor) / total) * 100}%` }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── Tabela de criativos ─────────────────────────────────────────────
+function corNum(t: 'bom' | 'padrao' | 'ruim') {
+  return t === 'bom'
+    ? { backgroundColor: '#10b98122', color: '#34d399' }
+    : t === 'ruim'
+      ? { backgroundColor: '#ef444422', color: '#f87171' }
+      : { backgroundColor: '#f59e0b22', color: '#fbbf24' }
+}
+
+function CriativosTabela({ m }: { m: Record<string, any> }) {
+  const lista: any[] = Array.isArray(m.criativos) ? m.criativos : []
+  if (!lista.length)
+    return (
+      <div className="panel p-5">
+        <h2 className="flex items-center gap-2 font-display text-sm font-bold text-ink-100">
+          <Trophy size={15} className="text-gold-300" /> Top 5 criativos
+        </h2>
+        <p className="mt-2 text-xs text-ink-500">
+          Os melhores criativos do período aparecerão aqui.
+        </p>
+      </div>
+    )
+
+  const calc = lista.slice(0, 5).map((c) => {
+    const inv = num(c.investimento)
+    const fat = num(c.faturamento)
+    const imp = num(c.impressoes)
+    const res = num(c.vendas) || num(c.leads)
+    return {
+      nome: c.nome,
+      fat,
+      inv,
+      cpm: imp ? (inv / imp) * 1000 : 0,
+      custoRes: res ? inv / res : 0,
+      roas: inv ? fat / inv : 0,
+    }
+  })
+
+  return (
+    <div className="panel overflow-hidden">
+      <div className="flex items-center gap-2 p-5 pb-3">
+        <Trophy size={15} className="text-gold-300" />
+        <h2 className="font-display text-sm font-bold text-ink-100">
+          Top 5 criativos
+        </h2>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-[10px] uppercase tracking-wide text-ink-500">
+              <th className="px-4 py-2 text-left">Criativo</th>
+              <th className="px-3 py-2 text-right">Faturamento</th>
+              <th className="px-3 py-2 text-right">Investimento</th>
+              <th className="px-3 py-2 text-right">CPM</th>
+              <th className="px-3 py-2 text-right">Custo/result.</th>
+              <th className="px-3 py-2 text-right">ROAS</th>
+            </tr>
+          </thead>
+          <tbody>
+            {calc.map((c, i) => (
+              <tr key={i} className="border-t border-white/[0.04]">
+                <td className="px-4 py-2.5">
+                  <span className="flex items-center gap-2">
+                    <span
+                      className="grid h-5 w-5 place-items-center rounded text-[10px] font-bold text-ink-950"
+                      style={{
+                        background: ['#e7cc83', '#c9c9d2', '#c79a3a', '#4a4a57', '#4a4a57'][i],
+                      }}
+                    >
+                      {i + 1}
+                    </span>
+                    <span className="text-ink-100">{c.nome}</span>
+                  </span>
+                </td>
+                <td className="px-3 py-2.5 text-right text-ink-200">
+                  {brl(c.fat)}
+                </td>
+                <td className="px-3 py-2.5 text-right text-ink-200">
+                  {brl(c.inv)}
+                </td>
+                <td className="px-2 py-2 text-right">
+                  <span
+                    className="rounded-md px-2 py-1 text-xs font-semibold"
+                    style={corNum(c.cpm < 25 ? 'bom' : c.cpm < 60 ? 'padrao' : 'ruim')}
+                  >
+                    {brl(c.cpm)}
+                  </span>
+                </td>
+                <td className="px-2 py-2 text-right">
+                  <span
+                    className="rounded-md px-2 py-1 text-xs font-semibold"
+                    style={corNum(
+                      c.custoRes && c.custoRes < 30
+                        ? 'bom'
+                        : c.custoRes < 80
+                          ? 'padrao'
+                          : 'ruim',
+                    )}
+                  >
+                    {brl(c.custoRes)}
+                  </span>
+                </td>
+                <td className="px-2 py-2 text-right">
+                  <span
+                    className="rounded-md px-2 py-1 text-xs font-bold"
+                    style={corNum(
+                      c.roas >= 3 ? 'bom' : c.roas >= 1.5 ? 'padrao' : 'ruim',
+                    )}
+                  >
+                    {c.roas.toFixed(1)}x
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+// ── Dias da semana (temperatura) ────────────────────────────────────
+function DiasSemana({ m }: { m: Record<string, any> }) {
+  const dias = [
+    { k: 'dom', l: 'Dom' },
+    { k: 'seg', l: 'Seg' },
+    { k: 'ter', l: 'Ter' },
+    { k: 'qua', l: 'Qua' },
+    { k: 'qui', l: 'Qui' },
+    { k: 'sex', l: 'Sex' },
+    { k: 'sab', l: 'Sáb' },
+  ]
+  const vals = dias.map((d) => num(m['dia_' + d.k]))
+  const max = Math.max(...vals, 1)
+  const heat = (v: number) => {
+    const t = v / max
+    if (t === 0) return '#1d1d25'
+    if (t < 0.34) return '#5b8def'
+    if (t < 0.67) return '#f59e0b'
+    return '#ef4444'
+  }
+
+  return (
+    <div className="panel p-5">
+      <h2 className="flex items-center gap-2 font-display text-sm font-bold text-ink-100">
+        <Flame size={15} className="text-red-400" /> Vendas por dia da semana
+      </h2>
+      <div className="mt-4 flex items-end justify-between gap-2">
+        {dias.map((d, i) => (
+          <div key={d.k} className="flex flex-1 flex-col items-center gap-1">
+            <span className="text-xs font-bold text-ink-200">{vals[i]}</span>
+            <div
+              className="w-full rounded-lg"
+              style={{
+                height: `${20 + (vals[i] / max) * 90}px`,
+                background: `linear-gradient(180deg, ${heat(vals[i])}, ${heat(vals[i])}88)`,
+              }}
+            />
+            <span className="text-[10px] text-ink-500">{d.l}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── Aba projeto ─────────────────────────────────────────────────────
 function AbaProjeto({
   progresso,
   semTrafego,
@@ -356,7 +656,7 @@ function AbaProjeto({
       )}
       {FASES_RUGIDO.map((f) => {
         const p = progresso.find((x) => x.fase === f.id)
-        const pct = p && p.total ? Math.round((p.concluidas / p.total) * 100) : 0
+        const pc = p && p.total ? Math.round((p.concluidas / p.total) * 100) : 0
         return (
           <div key={f.id} className="panel overflow-hidden">
             <div
@@ -372,7 +672,7 @@ function AbaProjeto({
               </div>
               <div className="text-right">
                 <div className="text-sm font-bold" style={{ color: f.cor }}>
-                  {pct}%
+                  {pc}%
                 </div>
                 <div className="text-[10px] text-ink-500">
                   {p?.concluidas ?? 0}/{p?.total ?? 0}
@@ -429,7 +729,7 @@ function ResumoFases({ progresso }: { progresso: FaseProg[] }) {
       <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {FASES_RUGIDO.map((f) => {
           const p = progresso.find((x) => x.fase === f.id)
-          const pct = p && p.total ? Math.round((p.concluidas / p.total) * 100) : 0
+          const pc = p && p.total ? Math.round((p.concluidas / p.total) * 100) : 0
           return (
             <div
               key={f.id}
@@ -441,7 +741,7 @@ function ResumoFases({ progresso }: { progresso: FaseProg[] }) {
               <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-ink-700">
                 <div
                   className="h-full rounded-full"
-                  style={{ width: `${pct}%`, backgroundColor: f.cor }}
+                  style={{ width: `${pc}%`, backgroundColor: f.cor }}
                 />
               </div>
             </div>
