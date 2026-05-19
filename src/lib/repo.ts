@@ -391,6 +391,69 @@ export async function moverTemplateFase(id: string, fase: FaseId) {
   if (error) throw error
 }
 
+// ── Relatório de tráfego pago ───────────────────────────────────────
+export interface RelatorioTrafego {
+  id: string
+  clienteId: string
+  token: string
+  senha: string
+  periodo: string
+  publicado: boolean
+  metricas: Record<string, any>
+}
+
+export async function getRelatorioCliente(
+  clienteId: string,
+): Promise<RelatorioTrafego | null> {
+  if (!SUPABASE_PRONTO) return null
+  const { data } = await supabase
+    .from('relatorios_trafego')
+    .select('*')
+    .eq('cliente_id', clienteId)
+    .maybeSingle()
+  if (!data) return null
+  return {
+    id: data.id,
+    clienteId: data.cliente_id,
+    token: data.token,
+    senha: data.senha,
+    periodo: data.periodo,
+    publicado: data.publicado,
+    metricas: data.metricas ?? {},
+  }
+}
+
+export async function salvarRelatorio(
+  clienteId: string,
+  campos: { senha?: string; periodo?: string; publicado?: boolean; metricas?: any },
+): Promise<RelatorioTrafego> {
+  if (!SUPABASE_PRONTO) throw new Error('Supabase não configurado')
+  const existente = await getRelatorioCliente(clienteId)
+  if (existente) {
+    const { data, error } = await supabase
+      .from('relatorios_trafego')
+      .update({ ...campos, atualizado_em: new Date().toISOString() })
+      .eq('id', existente.id)
+      .select()
+      .single()
+    if (error) throw error
+    return {
+      id: data.id, clienteId, token: data.token, senha: data.senha,
+      periodo: data.periodo, publicado: data.publicado, metricas: data.metricas ?? {},
+    }
+  }
+  const { data, error } = await supabase
+    .from('relatorios_trafego')
+    .insert({ cliente_id: clienteId, ...campos })
+    .select()
+    .single()
+  if (error) throw error
+  return {
+    id: data.id, clienteId, token: data.token, senha: data.senha,
+    periodo: data.periodo, publicado: data.publicado, metricas: data.metricas ?? {},
+  }
+}
+
 export async function salvarFaseConfig(f: FaseConfig) {
   if (!SUPABASE_PRONTO) return
   const { error } = await supabase
