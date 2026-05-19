@@ -179,6 +179,27 @@ export async function setSubtarefa(id: string, concluida: boolean) {
   if (error) throw error
 }
 
+export async function criarAprovacao(a: {
+  clienteId: string
+  tarefaId?: string
+  titulo: string
+  tipo: string
+}) {
+  if (!SUPABASE_PRONTO) throw new Error('Supabase não configurado')
+  const { data, error } = await supabase
+    .from('aprovacoes')
+    .insert({
+      cliente_id: a.clienteId,
+      tarefa_id: a.tarefaId ?? null,
+      titulo: a.titulo,
+      tipo: a.tipo,
+    })
+    .select('token')
+    .single()
+  if (error) throw error
+  return data as { token: string }
+}
+
 export async function criarCliente(c: Partial<Cliente>) {
   if (!SUPABASE_PRONTO) throw new Error('Supabase não configurado')
   const { data, error } = await supabase

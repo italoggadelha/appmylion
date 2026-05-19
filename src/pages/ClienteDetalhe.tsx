@@ -11,8 +11,11 @@ import {
   ChevronRight,
   Pencil,
   Plus,
+  Copy,
 } from 'lucide-react'
 import { useData } from '@/lib/data'
+import { criarAprovacao } from '@/lib/repo'
+import { SUPABASE_PRONTO } from '@/lib/supabase'
 import TarefaModal from '@/components/TarefaModal'
 import {
   FASES_RUGIDO,
@@ -294,8 +297,32 @@ function TarefaCard({
   tarefa: Tarefa
   onEditar: () => void
 }) {
-  const { alternarSubtarefa } = useData()
+  const { alternarSubtarefa, salvarTarefa } = useData()
   const [aberta, setAberta] = useState(false)
+  const [linkAprov, setLinkAprov] = useState('')
+  const [enviandoAprov, setEnviandoAprov] = useState(false)
+
+  async function enviarAprovacao() {
+    if (!SUPABASE_PRONTO) {
+      alert('Disponível com o backend conectado.')
+      return
+    }
+    setEnviandoAprov(true)
+    try {
+      const { token } = await criarAprovacao({
+        clienteId: tarefa.clienteId,
+        tarefaId: tarefa.id,
+        titulo: tarefa.titulo,
+        tipo: 'entrega',
+      })
+      await salvarTarefa({ id: tarefa.id, status: 'aguardando_aprovacao' })
+      setLinkAprov(`${window.location.origin}/aprovar/${token}`)
+    } catch {
+      alert('Falha ao gerar o link de aprovação.')
+    } finally {
+      setEnviandoAprov(false)
+    }
+  }
   const subFeitas = tarefa.subtarefas.filter((s) => s.concluida).length
   const atrasada =
     tarefa.status !== 'concluida' &&
@@ -402,12 +429,37 @@ function TarefaCard({
             <button className="btn-ghost py-1.5 text-xs">
               <MessageSquare size={13} /> Comentar
             </button>
-            {tarefa.precisaAprovacao && (
-              <button className="btn-gold py-1.5 text-xs">
-                <Send size={13} /> Enviar para aprovação
+            {tarefa.precisaAprovacao && !linkAprov && (
+              <button
+                onClick={enviarAprovacao}
+                disabled={enviandoAprov}
+                className="btn-gold py-1.5 text-xs"
+              >
+                <Send size={13} />
+                {enviandoAprov ? 'Gerando…' : 'Enviar para aprovação'}
               </button>
             )}
           </div>
+
+          {linkAprov && (
+            <div className="mt-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
+              <div className="text-[11px] font-semibold text-emerald-300">
+                Link de aprovação gerado — envie ao cliente:
+              </div>
+              <div className="mt-1.5 flex items-center gap-2">
+                <span className="truncate font-mono text-[11px] text-ink-300">
+                  {linkAprov}
+                </span>
+                <button
+                  onClick={() => navigator.clipboard?.writeText(linkAprov)}
+                  className="ml-auto shrink-0 text-ink-400 hover:text-gold-300"
+                  title="Copiar"
+                >
+                  <Copy size={14} />
+                </button>
+              </div>
+            </div>
+          )}
         </motion.div>
       )}
     </div>
