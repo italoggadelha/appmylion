@@ -73,6 +73,11 @@ export default function Chat() {
   useEffect(() => {
     recarregarConversas()
     getWppConexao().then(setWpp).catch(() => {})
+    const i = setInterval(() => {
+      recarregarConversas()
+      getWppConexao().then(setWpp).catch(() => {})
+    }, 5000)
+    return () => clearInterval(i)
   }, [recarregarConversas])
 
   useEffect(() => {
@@ -81,7 +86,14 @@ export default function Chat() {
     const cancelar = assinarMensagens(selId, (m) =>
       setMsgs((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m])),
     )
-    return cancelar
+    // backup ao realtime: recarrega as mensagens a cada 5s
+    const i = setInterval(() => {
+      listarMensagens(selId).then(setMsgs).catch(() => {})
+    }, 5000)
+    return () => {
+      cancelar()
+      clearInterval(i)
+    }
   }, [selId])
 
   useEffect(() => {

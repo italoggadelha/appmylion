@@ -2,14 +2,13 @@
 // RUGIDO OS — Gateway WhatsApp (QR-Code via Baileys)
 // Mantém a sessão do WhatsApp Web, gera o QR, recebe e envia mensagens,
 // sincronizando com o schema "rugido" do Supabase.
-//
-// Roda no VPS via pm2. Variáveis em .env (SUPABASE_URL, SERVICE_ROLE_KEY).
 // ═══════════════════════════════════════════════════════════════════
 import {
   makeWASocket,
   useMultiFileAuthState,
   DisconnectReason,
   fetchLatestBaileysVersion,
+  jidNormalizedUser,
 } from '@whiskeysockets/baileys'
 import { createClient } from '@supabase/supabase-js'
 import QRCode from 'qrcode'
@@ -31,18 +30,29 @@ const log = (...a) => console.log(new Date().toISOString(), ...a)
 const setConexao = (campos) =>
   sb.from('wpp_conexao').update(campos).eq('id', 1)
 
+// Resolve o JID de destino: usa o que veio (com @) ou monta a partir do número.
+function destino(telefone) {
+  if (!telefone) return null
+  if (telefone.includes('@')) return telefone
+  const num = telefone.replace(/\D/g, '')
+  return num ? num + '@s.whatsapp.net' : null
+}
+
 let sock = null
 let conectado = false
 
 async function start() {
   const { state, saveCreds } = await useMultiFileAuthState('auth_info')
   const { version } = await fetchLatestBaileysVersion()
+  log('Baileys versão WA', version.join('.'))
   sock = makeWASocket({
     version,
     auth: state,
     logger: pino({ level: 'silent' }),
     printQRInTerminal: false,
-    browser: ['RUGIDO OS', 'Chrome', '1.0'],
+    browser: ['RUGIDO OS', 'Chrome', '120.0'],
+    syncFullHistory: false,
+    markOnlineOnConnect: true,
   })
 
   sock.ev.on('creds.update', saveCreds)
@@ -57,7 +67,7 @@ async function start() {
     if (connection === 'open') {
       conectado = true
       const numero = (sock.user?.id || '').split(':')[0].split('@')[0]
-      log('Conectado:', numero)
+      log('CONECTADO:', numero)
       await setConexao({
         status: 'conectado',
         qr: null,
@@ -86,30 +96,38 @@ async function start() {
       try {
         if (m.key.fromMe) continue
         const jid = m.key.remoteJid || ''
-        if (jid.endsWith('@g.us') || jid === 'status@broadcast') continue
-        const fone = jid.split('@')[0]
+        if (jid.endsWith('@g.us') || jid.endsWith('@newsletter') || jid === 'status@broadcast')
+          continue
+        if (!m.message) {
+          log('Mensagem sem conteúdo (não decifrada) de', jid)
+          continue
+        }
         const texto =
           m.message?.conversation ||
           m.message?.extendedTextMessage?.text ||
           (m.message?.imageMessage ? '[imagem]' : '') ||
           (m.message?.audioMessage ? '[áudio]' : '') ||
+          (m.message?.videoMessage ? '[vídeo]' : '') ||
           (m.message?.documentMessage ? '[documento]' : '') ||
           '[mensagem]'
 
+        const jidNorm = jidNormalizedUser(jid)
+        // tenta achar conversa pelo jid completo OU pelo número puro
+        const numero = jidNorm.split('@')[0]
         let { data: conv } = await sb
           .from('conversas')
           .select('id')
-          .eq('telefone', fone)
           .eq('canal', 'whatsapp')
+          .or(`telefone.eq.${jidNorm},telefone.eq.${numero}`)
           .maybeSingle()
         if (!conv) {
           const { data: nova } = await sb
             .from('conversas')
             .insert({
-              titulo: m.pushName || fone,
+              titulo: m.pushName || numero,
               tipo: 'cliente',
               canal: 'whatsapp',
-              telefone: fone,
+              telefone: jidNorm,
               status: 'aguardando_cliente',
             })
             .select('id')
@@ -120,7 +138,7 @@ async function start() {
         await sb.from('mensagens').insert({
           conversa_id: conv.id,
           do_cliente: true,
-          autor_nome: m.pushName || fone,
+          autor_nome: m.pushName || numero,
           tipo: 'texto',
           conteudo: texto,
           enviada: true,
@@ -133,7 +151,7 @@ async function start() {
             status: 'aguardando_cliente',
           })
           .eq('id', conv.id)
-        log('Recebida de', fone)
+        log('RECEBIDA de', jidNorm, '→', texto.slice(0, 40))
       } catch (e) {
         log('Erro ao processar mensagem:', e.message)
       }
@@ -144,7 +162,6 @@ async function start() {
 // ── Envia mensagens pendentes da equipe + processa comandos ─────────
 setInterval(async () => {
   try {
-    // comando de desconexão vindo do sistema
     const { data: cx } = await sb
       .from('wpp_conexao')
       .select('comando')
@@ -170,24 +187,24 @@ setInterval(async () => {
       .limit(20)
     for (const msg of pend ?? []) {
       const conv = msg.conversas
-      if (conv?.canal !== 'whatsapp' || !conv?.telefone) {
+      const dest = destino(conv?.telefone)
+      if (conv?.canal !== 'whatsapp' || !dest) {
         await sb.from('mensagens').update({ enviada: true }).eq('id', msg.id)
         continue
       }
       try {
-        // assinatura: nome e função de quem está respondendo
         const assinatura =
           '*' +
           (msg.autor_nome || 'Equipe') +
           (msg.autor_funcao ? ' — ' + msg.autor_funcao : '') +
           '*\n'
-        await sock.sendMessage(conv.telefone + '@s.whatsapp.net', {
+        await sock.sendMessage(dest, {
           text: assinatura + (msg.conteudo || ''),
         })
         await sb.from('mensagens').update({ enviada: true }).eq('id', msg.id)
-        log('Enviada para', conv.telefone)
+        log('ENVIADA para', dest)
       } catch (e) {
-        log('Falha ao enviar:', e.message)
+        log('Falha ao enviar para', dest, ':', e.message)
       }
     }
   } catch (e) {
