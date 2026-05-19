@@ -55,6 +55,45 @@ export interface Tarefa {
 
 export type AprovacaoStatus = 'pendente' | 'aprovado' | 'reprovado' | 'ajustes'
 
+export interface StatusTarefa {
+  id: string
+  chave: string
+  nome: string
+  cor: string
+  ordem: number
+  ativo: boolean
+}
+
+export interface FaseConfig {
+  fase: FaseId
+  nome: string
+  subtitulo?: string
+  descricao?: string
+  cor: string
+  simbolo: string
+  ordem: number
+}
+
+export interface TarefaTemplate {
+  id: string
+  fase: FaseId
+  titulo: string
+  ordem: number
+}
+
+export type AnexoCategoria = 'aprovacao' | 'ideia' | 'apoio'
+export type AnexoTipo = 'texto' | 'link' | 'arquivo' | 'imagem'
+
+export interface Anexo {
+  id: string
+  tarefaId: string
+  categoria: AnexoCategoria
+  tipo: AnexoTipo
+  titulo: string
+  conteudo?: string
+  criadoEm: string
+}
+
 export interface Automacao {
   id: string
   chave: string

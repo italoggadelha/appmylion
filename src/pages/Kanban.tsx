@@ -24,7 +24,8 @@ type Modo = 'geral' | 'cliente' | 'membro'
 
 // ── Card de tarefa (arrastável entre fases) ─────────────────────────
 function Card({ tarefa }: { tarefa: Tarefa }) {
-  const { clientePorId } = useData()
+  const { clientePorId, abrirTarefa, statusInfo } = useData()
+  const si = statusInfo(tarefa.status)
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({ id: tarefa.id })
   const cliente = clientePorId(tarefa.clienteId)
@@ -38,6 +39,7 @@ function Card({ tarefa }: { tarefa: Tarefa }) {
       style={style}
       {...listeners}
       {...attributes}
+      onClick={() => abrirTarefa(tarefa.id)}
       className={`cursor-grab rounded-xl border border-white/[0.06] bg-ink-850 p-3 transition-shadow active:cursor-grabbing ${
         isDragging ? 'z-50 opacity-90 shadow-gold' : 'hover:border-white/15'
       }`}
@@ -58,12 +60,9 @@ function Card({ tarefa }: { tarefa: Tarefa }) {
       <div className="mt-2 flex items-center gap-1.5">
         <span
           className="rounded-md px-1.5 py-0.5 text-[10px] font-semibold"
-          style={{
-            backgroundColor: `${STATUS_COR[tarefa.status]}1f`,
-            color: STATUS_COR[tarefa.status],
-          }}
+          style={{ backgroundColor: `${si.cor}1f`, color: si.cor }}
         >
-          {STATUS_LABEL[tarefa.status]}
+          {si.nome}
         </span>
       </div>
       <div className="mt-2.5 flex items-center justify-between">

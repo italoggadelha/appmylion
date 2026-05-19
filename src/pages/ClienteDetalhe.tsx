@@ -296,11 +296,7 @@ export default function ClienteDetalhe() {
               </div>
             )}
             {tarefasFase.map((t) => (
-              <TarefaCard
-                key={t.id}
-                tarefa={t}
-                onEditar={() => setModal({ aberto: true, tarefa: t })}
-              />
+              <TarefaCard key={t.id} tarefa={t} />
             ))}
           </div>
         </div>
@@ -317,40 +313,11 @@ export default function ClienteDetalhe() {
   )
 }
 
-// ── Card de tarefa expansível ───────────────────────────────────────
-function TarefaCard({
-  tarefa,
-  onEditar,
-}: {
-  tarefa: Tarefa
-  onEditar: () => void
-}) {
-  const { alternarSubtarefa, salvarTarefa } = useData()
-  const [aberta, setAberta] = useState(false)
-  const [linkAprov, setLinkAprov] = useState('')
-  const [enviandoAprov, setEnviandoAprov] = useState(false)
 
-  async function enviarAprovacao() {
-    if (!SUPABASE_PRONTO) {
-      alert('Disponível com o backend conectado.')
-      return
-    }
-    setEnviandoAprov(true)
-    try {
-      const { token } = await criarAprovacao({
-        clienteId: tarefa.clienteId,
-        tarefaId: tarefa.id,
-        titulo: tarefa.titulo,
-        tipo: 'entrega',
-      })
-      await salvarTarefa({ id: tarefa.id, status: 'aguardando_aprovacao' })
-      setLinkAprov(`${window.location.origin}/aprovar/${token}`)
-    } catch {
-      alert('Falha ao gerar o link de aprovação.')
-    } finally {
-      setEnviandoAprov(false)
-    }
-  }
+// ── Card de tarefa (clicável → abre o detalhe global) ───────────────
+function TarefaCard({ tarefa }: { tarefa: Tarefa }) {
+  const { abrirTarefa, statusInfo } = useData()
+  const si = statusInfo(tarefa.status)
   const subFeitas = tarefa.subtarefas.filter((s) => s.concluida).length
   const atrasada =
     tarefa.status !== 'concluida' &&
@@ -358,138 +325,41 @@ function TarefaCard({
     new Date(tarefa.prazo).getTime() < Date.now()
 
   return (
-    <div className="panel overflow-hidden">
-      <button
-        onClick={() => setAberta((v) => !v)}
-        className="flex w-full items-center gap-3 p-3.5 text-left transition-colors hover:bg-ink-800/40"
-      >
-        <span
-          className="h-2.5 w-2.5 shrink-0 rounded-full"
-          style={{ backgroundColor: STATUS_COR[tarefa.status] }}
-        />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="truncate text-sm font-semibold text-ink-100">
-              {tarefa.titulo}
-            </span>
-            {tarefa.precisaAprovacao && (
-              <Badge cor="#8b5cf6">aprovação</Badge>
-            )}
-          </div>
-          <div className="mt-0.5 flex items-center gap-3 text-[11px] text-ink-500">
-            <span style={{ color: STATUS_COR[tarefa.status] }}>
-              {STATUS_LABEL[tarefa.status]}
-            </span>
-            <span className="flex items-center gap-1">
-              <Check size={11} /> {subFeitas}/{tarefa.subtarefas.length}
-            </span>
-            {tarefa.comentarios > 0 && (
-              <span className="flex items-center gap-1">
-                <MessageSquare size={11} /> {tarefa.comentarios}
-              </span>
-            )}
-            {tarefa.anexos > 0 && (
-              <span className="flex items-center gap-1">
-                <Paperclip size={11} /> {tarefa.anexos}
-              </span>
-            )}
-            {tarefa.prazo && (
-              <span className={atrasada ? 'font-semibold text-red-400' : ''}>
-                {atrasada ? '⚠ ' : ''}
-                {dataCurta(tarefa.prazo)}
-              </span>
-            )}
-          </div>
+    <button
+      onClick={() => abrirTarefa(tarefa.id)}
+      className="panel panel-hover flex w-full items-center gap-3 p-3.5 text-left"
+    >
+      <span
+        className="h-2.5 w-2.5 shrink-0 rounded-full"
+        style={{ backgroundColor: si.cor }}
+      />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="truncate text-sm font-semibold text-ink-100">
+            {tarefa.titulo}
+          </span>
+          {tarefa.precisaAprovacao && <Badge cor="#8b5cf6">aprovação</Badge>}
         </div>
-        <span
-          className="h-1.5 w-1.5 rounded-full"
-          style={{ backgroundColor: PRIORIDADE_COR[tarefa.prioridade] }}
-          title={`Prioridade ${tarefa.prioridade}`}
-        />
-        {tarefa.responsavelNome && (
-          <Avatar nome={tarefa.responsavelNome} size={28} />
-        )}
-      </button>
-
-      {aberta && (
-        <motion.div
-          initial={{ height: 0, opacity: 0 }}
-          animate={{ height: 'auto', opacity: 1 }}
-          className="border-t border-white/[0.06] bg-ink-900/60 p-4"
-        >
-          <div className="text-[11px] font-bold uppercase tracking-wide text-ink-500">
-            Checklist
-          </div>
-          <div className="mt-2 space-y-1.5">
-            {tarefa.subtarefas.length === 0 && (
-              <p className="text-xs text-ink-600">Sem itens de checklist.</p>
-            )}
-            {tarefa.subtarefas.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => alternarSubtarefa(s.id, !s.concluida)}
-                className="flex w-full cursor-pointer items-center gap-2.5 text-left text-sm"
-              >
-                <span
-                  className={`grid h-4 w-4 shrink-0 place-items-center rounded border transition-colors ${
-                    s.concluida
-                      ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400'
-                      : 'border-ink-500'
-                  }`}
-                >
-                  {s.concluida && <Check size={11} />}
-                </span>
-                <span
-                  className={
-                    s.concluida ? 'text-ink-500 line-through' : 'text-ink-200'
-                  }
-                >
-                  {s.titulo}
-                </span>
-              </button>
-            ))}
-          </div>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <button onClick={onEditar} className="btn-ghost py-1.5 text-xs">
-              <Pencil size={13} /> Editar tarefa
-            </button>
-            <button className="btn-ghost py-1.5 text-xs">
-              <MessageSquare size={13} /> Comentar
-            </button>
-            {tarefa.precisaAprovacao && !linkAprov && (
-              <button
-                onClick={enviarAprovacao}
-                disabled={enviandoAprov}
-                className="btn-gold py-1.5 text-xs"
-              >
-                <Send size={13} />
-                {enviandoAprov ? 'Gerando…' : 'Enviar para aprovação'}
-              </button>
-            )}
-          </div>
-
-          {linkAprov && (
-            <div className="mt-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
-              <div className="text-[11px] font-semibold text-emerald-300">
-                Link de aprovação gerado — envie ao cliente:
-              </div>
-              <div className="mt-1.5 flex items-center gap-2">
-                <span className="truncate font-mono text-[11px] text-ink-300">
-                  {linkAprov}
-                </span>
-                <button
-                  onClick={() => navigator.clipboard?.writeText(linkAprov)}
-                  className="ml-auto shrink-0 text-ink-400 hover:text-gold-300"
-                  title="Copiar"
-                >
-                  <Copy size={14} />
-                </button>
-              </div>
-            </div>
+        <div className="mt-0.5 flex items-center gap-3 text-[11px] text-ink-500">
+          <span style={{ color: si.cor }}>{si.nome}</span>
+          <span className="flex items-center gap-1">
+            <Check size={11} /> {subFeitas}/{tarefa.subtarefas.length}
+          </span>
+          {tarefa.prazo && (
+            <span className={atrasada ? 'font-semibold text-red-400' : ''}>
+              {atrasada ? '⚠ ' : ''}
+              {dataCurta(tarefa.prazo)}
+            </span>
           )}
-        </motion.div>
+        </div>
+      </div>
+      <span
+        className="h-1.5 w-1.5 rounded-full"
+        style={{ backgroundColor: PRIORIDADE_COR[tarefa.prioridade] }}
+      />
+      {tarefa.responsavelNome && (
+        <Avatar nome={tarefa.responsavelNome} size={28} />
       )}
-    </div>
+    </button>
   )
 }

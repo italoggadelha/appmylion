@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Trash2 } from 'lucide-react'
 import { useData } from '@/lib/data'
@@ -113,7 +114,7 @@ export default function TarefaModal({
     }
   }
 
-  return (
+  return createPortal(
     <AnimatePresence>
       {aberto && (
         <motion.div
@@ -121,7 +122,7 @@ export default function TarefaModal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onFechar}
-          className="fixed inset-0 z-50 grid place-items-center bg-ink-950/70 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-[110] grid place-items-center bg-ink-950/70 p-4 backdrop-blur-sm"
         >
           <motion.form
             initial={{ opacity: 0, y: 16, scale: 0.98 }}
@@ -288,6 +289,7 @@ export default function TarefaModal({
           </motion.form>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   )
 }

@@ -1,7 +1,36 @@
 import { supabase, SUPABASE_PRONTO } from './supabase'
-import type { Cliente, Membro, Tarefa, Aprovacao, Automacao } from './types'
+import type {
+  Cliente,
+  Membro,
+  Tarefa,
+  Aprovacao,
+  Automacao,
+  StatusTarefa,
+  FaseConfig,
+  TarefaTemplate,
+  Anexo,
+} from './types'
 import { FASES_RUGIDO, type FaseId } from '@/data/rugido'
 import * as mock from '@/data/mock'
+
+// Status padrão (fallback quando sem backend)
+const STATUS_PADRAO: StatusTarefa[] = [
+  { id: '1', chave: 'a_fazer', nome: 'A fazer', cor: '#4a4a57', ordem: 1, ativo: true },
+  { id: '2', chave: 'fazendo', nome: 'Em execução', cor: '#5b8def', ordem: 2, ativo: true },
+  { id: '3', chave: 'aguardando_cliente', nome: 'Aguardando cliente', cor: '#f59e0b', ordem: 3, ativo: true },
+  { id: '4', chave: 'aguardando_aprovacao', nome: 'Aguardando aprovação', cor: '#8b5cf6', ordem: 4, ativo: true },
+  { id: '5', chave: 'concluida', nome: 'Concluída', cor: '#10b981', ordem: 5, ativo: true },
+  { id: '6', chave: 'travada', nome: 'Travada', cor: '#ef4444', ordem: 6, ativo: true },
+]
+const FASES_PADRAO: FaseConfig[] = FASES_RUGIDO.map((f) => ({
+  fase: f.id,
+  nome: f.nome,
+  subtitulo: f.subtitulo,
+  descricao: f.descricao,
+  cor: f.cor,
+  simbolo: f.simbolo,
+  ordem: f.numero,
+}))
 
 // ═══════════════════════════════════════════════════════════════════
 // Camada de dados. Com Supabase configurado lê do banco (schema rugido);
@@ -75,6 +104,9 @@ export interface Snapshot {
   tarefas: Tarefa[]
   aprovacoes: Aprovacao[]
   automacoes: Automacao[]
+  status: StatusTarefa[]
+  fases: FaseConfig[]
+  templates: TarefaTemplate[]
 }
 
 export async function carregarTudo(): Promise<Snapshot> {
@@ -85,18 +117,26 @@ export async function carregarTudo(): Promise<Snapshot> {
       tarefas: mock.TAREFAS,
       aprovacoes: mock.APROVACOES,
       automacoes: [],
+      status: STATUS_PADRAO,
+      fases: FASES_PADRAO,
+      templates: [],
     }
   }
 
-  const [mRes, cRes, tRes, aRes, auRes] = await Promise.all([
+  const [mRes, cRes, tRes, aRes, auRes, sRes, fRes, tpRes] = await Promise.all([
     supabase.from('membros').select('*').order('email'),
     supabase.from('clientes').select('*').order('empresa'),
     supabase.from('tarefas').select('*, subtarefas(*)').order('ordem'),
     supabase.from('aprovacoes').select('*').order('enviada_em', { ascending: false }),
     supabase.from('automacoes').select('*').order('criado_em'),
+    supabase.from('status_tarefa').select('*').order('ordem'),
+    supabase.from('fase_config').select('*').order('ordem'),
+    supabase.from('tarefa_templates').select('*').order('ordem'),
   ])
 
-  const erro = mRes.error || cRes.error || tRes.error || aRes.error || auRes.error
+  const erro =
+    mRes.error || cRes.error || tRes.error || aRes.error || auRes.error ||
+    sRes.error || fRes.error || tpRes.error
   if (erro) throw erro
 
   const membros = (mRes.data ?? []).map(mapMembro)
@@ -108,6 +148,13 @@ export async function carregarTudo(): Promise<Snapshot> {
     tarefas: (tRes.data ?? []).map((r) => mapTarefa(r, nomes)),
     aprovacoes: (aRes.data ?? []).map(mapAprovacao),
     automacoes: (auRes.data ?? []) as Automacao[],
+    status: ((sRes.data ?? []) as StatusTarefa[]).length
+      ? (sRes.data as StatusTarefa[])
+      : STATUS_PADRAO,
+    fases: ((fRes.data ?? []) as FaseConfig[]).length
+      ? (fRes.data as FaseConfig[])
+      : FASES_PADRAO,
+    templates: (tpRes.data ?? []) as TarefaTemplate[],
   }
 }
 
@@ -207,19 +254,156 @@ export async function criarAprovacao(a: {
 
 export async function gerarTarefasFase(clienteId: string, fase: FaseId) {
   if (!SUPABASE_PRONTO) return 0
-  const def = FASES_RUGIDO.find((f) => f.id === fase)
-  if (!def) return 0
-  const linhas = def.tarefasPadrao.map((titulo, i) => ({
-    cliente_id: clienteId,
-    fase,
-    titulo,
-    status: 'a_fazer',
-    prioridade: 'media',
-    ordem: i + 1,
-  }))
-  const { error } = await supabase.from('tarefas').insert(linhas)
+  const { data: tpls } = await supabase
+    .from('tarefa_templates')
+    .select('id, titulo, ordem, subtarefa_templates(titulo, ordem)')
+    .eq('fase', fase)
+    .order('ordem')
+  const lista = tpls ?? []
+  if (!lista.length) return 0
+  for (const tp of lista as any[]) {
+    const { data: nova } = await supabase
+      .from('tarefas')
+      .insert({
+        cliente_id: clienteId,
+        fase,
+        titulo: tp.titulo,
+        status: 'a_fazer',
+        prioridade: 'media',
+        ordem: tp.ordem,
+      })
+      .select('id')
+      .single()
+    const subs = tp.subtarefa_templates ?? []
+    if (nova && subs.length) {
+      await supabase.from('subtarefas').insert(
+        subs.map((s: any, i: number) => ({
+          tarefa_id: nova.id,
+          titulo: s.titulo,
+          concluida: false,
+          ordem: s.ordem ?? i,
+        })),
+      )
+    }
+  }
+  return lista.length
+}
+
+// ── Anexos de tarefa ────────────────────────────────────────────────
+const mapAnexo = (r: any): Anexo => ({
+  id: r.id,
+  tarefaId: r.tarefa_id,
+  categoria: r.categoria,
+  tipo: r.tipo,
+  titulo: r.titulo,
+  conteudo: r.conteudo ?? undefined,
+  criadoEm: r.criado_em,
+})
+
+export async function listarAnexos(tarefaId: string): Promise<Anexo[]> {
+  if (!SUPABASE_PRONTO) return []
+  const { data, error } = await supabase
+    .from('anexos')
+    .select('*')
+    .eq('tarefa_id', tarefaId)
+    .order('criado_em')
   if (error) throw error
-  return linhas.length
+  return (data ?? []).map(mapAnexo)
+}
+
+export async function criarAnexo(a: Omit<Anexo, 'id' | 'criadoEm'>) {
+  if (!SUPABASE_PRONTO) throw new Error('Supabase não configurado')
+  const { error } = await supabase.from('anexos').insert({
+    tarefa_id: a.tarefaId,
+    categoria: a.categoria,
+    tipo: a.tipo,
+    titulo: a.titulo,
+    conteudo: a.conteudo ?? null,
+  })
+  if (error) throw error
+}
+
+export async function excluirAnexo(id: string) {
+  if (!SUPABASE_PRONTO) return
+  const { error } = await supabase.from('anexos').delete().eq('id', id)
+  if (error) throw error
+}
+
+export async function uploadArquivo(file: File): Promise<string> {
+  if (!SUPABASE_PRONTO) throw new Error('Supabase não configurado')
+  const nome = `${Date.now()}-${file.name.replace(/[^\w.\-]/g, '_')}`
+  const { error } = await supabase.storage.from('anexos').upload(nome, file)
+  if (error) throw error
+  return supabase.storage.from('anexos').getPublicUrl(nome).data.publicUrl
+}
+
+// ── Status de tarefa ────────────────────────────────────────────────
+export async function salvarStatus(s: Partial<StatusTarefa> & { id?: string }) {
+  if (!SUPABASE_PRONTO) throw new Error('Supabase não configurado')
+  const campos = { chave: s.chave, nome: s.nome, cor: s.cor, ordem: s.ordem }
+  if (s.id) {
+    const { error } = await supabase
+      .from('status_tarefa')
+      .update({ nome: s.nome, cor: s.cor, ordem: s.ordem })
+      .eq('id', s.id)
+    if (error) throw error
+  } else {
+    const { error } = await supabase.from('status_tarefa').insert(campos)
+    if (error) throw error
+  }
+}
+
+export async function excluirStatus(id: string) {
+  if (!SUPABASE_PRONTO) return
+  const { error } = await supabase.from('status_tarefa').delete().eq('id', id)
+  if (error) throw error
+}
+
+// ── Templates de fase ───────────────────────────────────────────────
+export async function salvarTemplate(t: Partial<TarefaTemplate> & { id?: string }) {
+  if (!SUPABASE_PRONTO) throw new Error('Supabase não configurado')
+  if (t.id) {
+    const { error } = await supabase
+      .from('tarefa_templates')
+      .update({ titulo: t.titulo, fase: t.fase, ordem: t.ordem })
+      .eq('id', t.id)
+    if (error) throw error
+  } else {
+    const { error } = await supabase
+      .from('tarefa_templates')
+      .insert({ titulo: t.titulo, fase: t.fase, ordem: t.ordem ?? 99 })
+    if (error) throw error
+  }
+}
+
+export async function excluirTemplate(id: string) {
+  if (!SUPABASE_PRONTO) return
+  const { error } = await supabase.from('tarefa_templates').delete().eq('id', id)
+  if (error) throw error
+}
+
+export async function moverTemplateFase(id: string, fase: FaseId) {
+  if (!SUPABASE_PRONTO) return
+  const { error } = await supabase
+    .from('tarefa_templates')
+    .update({ fase })
+    .eq('id', id)
+  if (error) throw error
+}
+
+export async function salvarFaseConfig(f: FaseConfig) {
+  if (!SUPABASE_PRONTO) return
+  const { error } = await supabase
+    .from('fase_config')
+    .update({
+      nome: f.nome,
+      subtitulo: f.subtitulo,
+      descricao: f.descricao,
+      cor: f.cor,
+      simbolo: f.simbolo,
+    })
+    .eq('fase', f.fase)
+  if (error) throw error
 }
 
 export async function atualizarCliente(id: string, campos: Record<string, unknown>) {

@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import Topbar from './Topbar'
+import TarefaDetalhe from './TarefaDetalhe'
 
 export default function Layout() {
   return (
@@ -14,6 +15,8 @@ export default function Layout() {
           </div>
         </main>
       </div>
+      {/* Detalhe de tarefa — global, abre de qualquer tela */}
+      <TarefaDetalhe />
     </div>
   )
 }

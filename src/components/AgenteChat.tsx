@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Send, Sparkles } from 'lucide-react'
 import { useData } from '@/lib/data'
@@ -81,7 +82,7 @@ export default function AgenteChat({
     }
   }
 
-  return (
+  return createPortal(
     <AnimatePresence>
       {agente && (
         <motion.div
@@ -89,7 +90,7 @@ export default function AgenteChat({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onFechar}
-          className="fixed inset-0 z-50 grid place-items-center bg-ink-950/70 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-[110] grid place-items-center bg-ink-950/70 p-4 backdrop-blur-sm"
         >
           <motion.div
             initial={{ opacity: 0, y: 16, scale: 0.98 }}
@@ -233,6 +234,7 @@ export default function AgenteChat({
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   )
 }

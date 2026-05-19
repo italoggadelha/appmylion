@@ -41,6 +41,10 @@ interface DataCtx extends Snapshot {
   avancarFase: (clienteId: string, novaFase: FaseId) => Promise<number>
   alternarAutomacao: (id: string, ativa: boolean) => void
   automacaoAtiva: (chave: string) => boolean
+  statusInfo: (chave: string) => { nome: string; cor: string }
+  tarefaAberta: string | null
+  abrirTarefa: (id: string) => void
+  fecharTarefa: () => void
   // helpers
   clientePorId: (id: string) => Cliente | undefined
   membroPorId: (id: string) => Membro | undefined
@@ -56,12 +60,16 @@ const VAZIO: Snapshot = {
   tarefas: [],
   aprovacoes: [],
   automacoes: [],
+  status: [],
+  fases: [],
+  templates: [],
 }
 
 export function DataProvider({ children }: { children: ReactNode }) {
   const [snap, setSnap] = useState<Snapshot>(VAZIO)
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
+  const [tarefaAberta, setTarefaAberta] = useState<string | null>(null)
 
   const recarregar = useCallback(async () => {
     setCarregando(true)
@@ -166,6 +174,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
     avancarFase,
     alternarAutomacao,
     automacaoAtiva,
+    statusInfo: (chave) => {
+      const s = snap.status.find((x) => x.chave === chave)
+      return s
+        ? { nome: s.nome, cor: s.cor }
+        : { nome: chave, cor: '#4a4a57' }
+    },
+    tarefaAberta,
+    abrirTarefa: (id) => setTarefaAberta(id),
+    fecharTarefa: () => setTarefaAberta(null),
     clientePorId: (id) => snap.clientes.find((c) => c.id === id),
     membroPorId: (id) => snap.membros.find((m) => m.id === id),
     tarefasDoCliente: (id) => snap.tarefas.filter((t) => t.clienteId === id),
