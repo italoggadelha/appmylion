@@ -2,6 +2,7 @@ import { Outlet } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import Topbar from './Topbar'
 import TarefaDetalhe from './TarefaDetalhe'
+import AgenteOperacionalWidget from './AgenteOperacionalWidget'
 
 export default function Layout() {
   return (
@@ -17,6 +18,8 @@ export default function Layout() {
       </div>
       {/* Detalhe de tarefa — global, abre de qualquer tela */}
       <TarefaDetalhe />
+      {/* Agente operacional — canto inferior */}
+      <AgenteOperacionalWidget />
     </div>
   )
 }

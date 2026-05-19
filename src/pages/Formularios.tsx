@@ -110,6 +110,9 @@ export default function Formularios() {
               <EnvioCard
                 key={e.id}
                 envio={e}
+                campos={
+                  modelos.find((m) => m.id === e.formularioId)?.campos ?? []
+                }
                 empresa={cli?.empresa ?? '—'}
                 onConfirmar={async () => {
                   await confirmarPlano(e.id)
@@ -147,10 +150,12 @@ export default function Formularios() {
 // ── Card de um envio ────────────────────────────────────────────────
 function EnvioCard({
   envio,
+  campos,
   empresa,
   onConfirmar,
 }: {
   envio: RespostaForm
+  campos: CampoForm[]
   empresa: string
   onConfirmar: () => void
 }) {
@@ -207,6 +212,69 @@ function EnvioCard({
               >
                 <ExternalLink size={14} />
               </a>
+            </div>
+          )}
+
+          {respondido && campos.length > 0 && (
+            <div className="mb-3 rounded-lg border border-white/[0.05] bg-ink-900 p-3">
+              <div className="mb-2 text-[11px] font-bold uppercase tracking-wide text-ink-500">
+                Experiência do cliente no formulário
+              </div>
+              {(() => {
+                const total = Object.values(envio.tempos).reduce(
+                  (s, v) => s + Number(v || 0),
+                  0,
+                )
+                const respondidas = campos.filter(
+                  (c) => envio.respostas[c.id] !== undefined,
+                ).length
+                return (
+                  <>
+                    <div className="mb-2 flex gap-4 text-xs">
+                      <span className="text-ink-300">
+                        Tempo total:{' '}
+                        <b className="text-gold-300">
+                          {Math.floor(total / 60)}min {total % 60}s
+                        </b>
+                      </span>
+                      <span className="text-ink-300">
+                        Concluído:{' '}
+                        <b className="text-gold-300">
+                          {Math.round((respondidas / campos.length) * 100)}%
+                        </b>
+                      </span>
+                    </div>
+                    <div className="space-y-1">
+                      {campos.map((c) => {
+                        const seg = Number(envio.tempos[c.id] ?? 0)
+                        const max = Math.max(
+                          ...campos.map((x) => Number(envio.tempos[x.id] ?? 0)),
+                          1,
+                        )
+                        return (
+                          <div
+                            key={c.id}
+                            className="flex items-center gap-2 text-[11px]"
+                          >
+                            <span className="w-40 truncate text-ink-400">
+                              {c.label}
+                            </span>
+                            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-ink-700">
+                              <div
+                                className="h-full rounded-full bg-gold-grad"
+                                style={{ width: `${(seg / max) * 100}%` }}
+                              />
+                            </div>
+                            <span className="w-12 text-right text-ink-400">
+                              {seg}s
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </>
+                )
+              })()}
             </div>
           )}
 
@@ -352,8 +420,14 @@ function EnviarModal({
     </div>
   )
 }
+// ── Aba de modelos (construtor de formulário) ───────────────────────
+const TIPOS = [
+  { v: 'textarea', l: 'Resposta longa' },
+  { v: 'texto', l: 'Resposta curta' },
+  { v: 'opcao_unica', l: 'Escolha única' },
+  { v: 'opcao_multipla', l: 'Múltipla escolha' },
+]
 
-// ── Aba de modelos ──────────────────────────────────────────────────
 function ModelosTab({
   modelos,
   onMudou,
@@ -365,24 +439,21 @@ function ModelosTab({
   const [nome, setNome] = useState('')
   const [descricao, setDescricao] = useState('')
   const [campos, setCampos] = useState<CampoForm[]>([])
-  const [novoCampo, setNovoCampo] = useState('')
 
   function addCampo() {
-    if (!novoCampo.trim()) return
     setCampos((c) => [
       ...c,
-      {
-        id: 'c' + Date.now(),
-        label: novoCampo,
-        tipo: 'textarea',
-      },
+      { id: 'c' + Date.now(), label: '', tipo: 'textarea', opcoes: [] },
     ])
-    setNovoCampo('')
+  }
+  function upCampo(id: string, patch: Partial<CampoForm>) {
+    setCampos((cs) => cs.map((c) => (c.id === id ? { ...c, ...patch } : c)))
   }
 
   async function salvar() {
-    if (!nome.trim() || campos.length === 0) return
-    await salvarFormulario({ nome, descricao, campos })
+    const validos = campos.filter((c) => c.label.trim())
+    if (!nome.trim() || validos.length === 0) return
+    await salvarFormulario({ nome, descricao, campos: validos })
     setCriando(false)
     setNome('')
     setDescricao('')
@@ -421,37 +492,94 @@ function ModelosTab({
             value={descricao}
             onChange={(e) => setDescricao(e.target.value)}
           />
-          <div className="space-y-1.5">
+
+          {/* Cards de perguntas */}
+          <div className="space-y-2">
             {campos.map((c, i) => (
               <div
                 key={c.id}
-                className="flex items-center gap-2 rounded-lg bg-ink-850 px-2.5 py-1.5 text-xs text-ink-200"
+                className="rounded-xl border border-white/[0.07] bg-ink-850 p-3"
               >
-                <span className="text-ink-500">{i + 1}.</span>
-                <span className="flex-1">{c.label}</span>
-                <button
-                  onClick={() =>
-                    setCampos((cs) => cs.filter((x) => x.id !== c.id))
-                  }
-                  className="text-ink-500 hover:text-red-400"
-                >
-                  <Trash2 size={12} />
-                </button>
+                <div className="flex items-center gap-2">
+                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-ink-700 text-[11px] font-bold text-ink-300">
+                    {i + 1}
+                  </span>
+                  <input
+                    className="input flex-1 py-1.5"
+                    placeholder="Texto da pergunta"
+                    value={c.label}
+                    onChange={(e) => upCampo(c.id, { label: e.target.value })}
+                  />
+                  <button
+                    onClick={() =>
+                      setCampos((cs) => cs.filter((x) => x.id !== c.id))
+                    }
+                    className="text-ink-500 hover:text-red-400"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {TIPOS.map((t) => (
+                    <button
+                      key={t.v}
+                      onClick={() => upCampo(c.id, { tipo: t.v })}
+                      className={`rounded-md px-2 py-1 text-[10px] font-semibold ${
+                        c.tipo === t.v
+                          ? 'bg-gold-500/15 text-gold-200'
+                          : 'bg-ink-800 text-ink-400'
+                      }`}
+                    >
+                      {t.l}
+                    </button>
+                  ))}
+                </div>
+                {(c.tipo === 'opcao_unica' || c.tipo === 'opcao_multipla') && (
+                  <div className="mt-2 space-y-1">
+                    {(c.opcoes ?? []).map((o, oi) => (
+                      <div key={oi} className="flex gap-1.5">
+                        <input
+                          className="input flex-1 py-1 text-xs"
+                          placeholder={`Opção ${oi + 1}`}
+                          value={o}
+                          onChange={(e) => {
+                            const ops = [...(c.opcoes ?? [])]
+                            ops[oi] = e.target.value
+                            upCampo(c.id, { opcoes: ops })
+                          }}
+                        />
+                        <button
+                          onClick={() =>
+                            upCampo(c.id, {
+                              opcoes: (c.opcoes ?? []).filter(
+                                (_, x) => x !== oi,
+                              ),
+                            })
+                          }
+                          className="text-ink-500 hover:text-red-400"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      onClick={() =>
+                        upCampo(c.id, { opcoes: [...(c.opcoes ?? []), ''] })
+                      }
+                      className="text-[11px] font-semibold text-gold-400 hover:text-gold-300"
+                    >
+                      + adicionar opção
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
-          <div className="flex gap-2">
-            <input
-              className="input"
-              placeholder="Nova pergunta…"
-              value={novoCampo}
-              onChange={(e) => setNovoCampo(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && addCampo()}
-            />
-            <button onClick={addCampo} className="btn-ghost">
-              <Plus size={15} />
-            </button>
-          </div>
+
+          <button onClick={addCampo} className="btn-ghost w-full">
+            <Plus size={15} /> Adicionar pergunta
+          </button>
+
           <div className="flex justify-end gap-2">
             <button onClick={() => setCriando(false)} className="btn-ghost">
               Cancelar

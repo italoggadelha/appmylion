@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
-import { motion } from 'framer-motion'
-import { Check, X, ShieldCheck } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Check, X, ShieldCheck, ArrowRight, ArrowLeft } from 'lucide-react'
 
 const FN = `${import.meta.env.VITE_SUPABASE_URL ?? ''}/functions/v1/formulario-publico`
 const ANON = import.meta.env.VITE_SUPABASE_ANON_KEY ?? ''
@@ -11,58 +11,81 @@ interface Campo {
   id: string
   label: string
   tipo: string
+  opcoes?: string[]
 }
 
 export default function FormularioPublico() {
   const { token } = useParams()
-  const [estado, setEstado] = useState<
-    'carregando' | 'form' | 'erro' | 'feito'
-  >('carregando')
+  const [estado, setEstado] = useState<'carregando' | 'quiz' | 'erro' | 'feito'>(
+    'carregando',
+  )
   const [empresa, setEmpresa] = useState('')
   const [nome, setNome] = useState('')
-  const [descricao, setDescricao] = useState('')
   const [campos, setCampos] = useState<Campo[]>([])
-  const [resp, setResp] = useState<Record<string, string>>({})
+  const [idx, setIdx] = useState(0)
+  const [resp, setResp] = useState<Record<string, any>>({})
+  const [tempos, setTempos] = useState<Record<string, number>>({})
   const [enviando, setEnviando] = useState(false)
+  const inicio = useRef(Date.now())
 
   useEffect(() => {
     fetch(`${FN}?token=${encodeURIComponent(token ?? '')}`, { headers: H })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((d) => {
-        if (d.status === 'respondido') {
-          setEstado('feito')
-          return
-        }
+        if (d.status === 'respondido') return setEstado('feito')
         setEmpresa(d.empresa)
         setNome(d.formulario?.nome ?? 'Formulário')
-        setDescricao(d.formulario?.descricao ?? '')
         setCampos(d.formulario?.campos ?? [])
-        setEstado('form')
+        setEstado('quiz')
+        inicio.current = Date.now()
       })
       .catch(() => setEstado('erro'))
   }, [token])
 
-  async function enviar(e: React.FormEvent) {
-    e.preventDefault()
+  const campo = campos[idx]
+  const ultimo = idx === campos.length - 1
+  const respondido = (c: Campo) => {
+    const v = resp[c.id]
+    if (c.tipo === 'opcao_multipla') return Array.isArray(v) && v.length > 0
+    return v !== undefined && String(v).trim() !== ''
+  }
+
+  function registrarTempo() {
+    if (!campo) return
+    const seg = Math.round((Date.now() - inicio.current) / 1000)
+    setTempos((t) => ({ ...t, [campo.id]: (t[campo.id] ?? 0) + seg }))
+    inicio.current = Date.now()
+  }
+
+  function avancar() {
+    registrarTempo()
+    if (ultimo) enviar()
+    else setIdx((i) => i + 1)
+  }
+  function voltar() {
+    registrarTempo()
+    setIdx((i) => Math.max(0, i - 1))
+  }
+
+  async function enviar() {
     setEnviando(true)
     try {
       const r = await fetch(FN, {
         method: 'POST',
         headers: { ...H, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, respostas: resp }),
+        body: JSON.stringify({ token, respostas: resp, tempos }),
       })
       if (!r.ok) throw new Error()
       setEstado('feito')
     } catch {
       alert('Não foi possível enviar. Tente novamente.')
-    } finally {
       setEnviando(false)
     }
   }
 
   return (
-    <div className="min-h-screen px-4 py-10">
-      <div className="mx-auto max-w-xl">
+    <div className="grid min-h-screen place-items-center px-4 py-8">
+      <div className="w-full max-w-xl">
         <div className="mb-5 flex items-center justify-center gap-2.5">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gold-grad font-display text-lg font-extrabold text-ink-950">
             R
@@ -84,7 +107,6 @@ export default function FormularioPublico() {
             <h1 className="mt-3 font-display text-lg font-bold">
               Formulário indisponível
             </h1>
-            <p className="mt-1 text-sm text-ink-400">Link inválido.</p>
           </div>
         )}
 
@@ -101,65 +123,159 @@ export default function FormularioPublico() {
               Respostas enviadas!
             </h1>
             <p className="mt-1 text-sm text-ink-400">
-              Obrigado. A equipe da MyLion vai analisar e montar a sua
-              estratégia.
+              Obrigado. A equipe da MyLion vai montar a sua estratégia.
             </p>
           </motion.div>
         )}
 
-        {estado === 'form' && (
-          <motion.form
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            onSubmit={enviar}
-            className="panel overflow-hidden"
-          >
-            <div className="bg-ink-grad p-6">
-              <div className="text-[11px] uppercase tracking-[0.2em] text-gold-500">
-                {empresa}
+        {estado === 'quiz' && campo && (
+          <div className="panel overflow-hidden">
+            {/* Progresso */}
+            <div className="bg-ink-grad p-5">
+              <div className="flex items-center justify-between text-[11px] text-ink-400">
+                <span className="uppercase tracking-wide text-gold-500">
+                  {empresa} · {nome}
+                </span>
+                <span>
+                  {idx + 1} de {campos.length}
+                </span>
               </div>
-              <h1 className="mt-1 font-display text-xl font-bold text-ink-50">
-                {nome}
-              </h1>
-              {descricao && (
-                <p className="mt-1 text-sm text-ink-400">{descricao}</p>
-              )}
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-ink-700">
+                <div
+                  className="h-full rounded-full bg-gold-grad transition-all"
+                  style={{ width: `${((idx + 1) / campos.length) * 100}%` }}
+                />
+              </div>
             </div>
 
-            <div className="space-y-4 p-6">
-              {campos.map((c) => (
-                <div key={c.id}>
-                  <label className="mb-1.5 block text-sm font-medium text-ink-200">
-                    {c.label}
-                  </label>
-                  {c.tipo === 'textarea' ? (
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={campo.id}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="p-6"
+              >
+                <h2 className="font-display text-lg font-bold text-ink-50">
+                  {campo.label}
+                </h2>
+
+                <div className="mt-4">
+                  {campo.tipo === 'textarea' && (
                     <textarea
-                      className="input min-h-[80px] resize-y"
-                      value={resp[c.id] ?? ''}
+                      className="input min-h-[110px] resize-y"
+                      value={resp[campo.id] ?? ''}
                       onChange={(e) =>
-                        setResp((p) => ({ ...p, [c.id]: e.target.value }))
+                        setResp((p) => ({ ...p, [campo.id]: e.target.value }))
                       }
-                    />
-                  ) : (
-                    <input
-                      className="input"
-                      value={resp[c.id] ?? ''}
-                      onChange={(e) =>
-                        setResp((p) => ({ ...p, [c.id]: e.target.value }))
-                      }
+                      autoFocus
                     />
                   )}
+                  {campo.tipo === 'texto' && (
+                    <input
+                      className="input"
+                      value={resp[campo.id] ?? ''}
+                      onChange={(e) =>
+                        setResp((p) => ({ ...p, [campo.id]: e.target.value }))
+                      }
+                      autoFocus
+                    />
+                  )}
+                  {campo.tipo === 'opcao_unica' && (
+                    <div className="space-y-2">
+                      {(campo.opcoes ?? []).map((o) => (
+                        <button
+                          key={o}
+                          onClick={() =>
+                            setResp((p) => ({ ...p, [campo.id]: o }))
+                          }
+                          className={`flex w-full items-center gap-2.5 rounded-xl border p-3 text-left text-sm transition-all ${
+                            resp[campo.id] === o
+                              ? 'border-gold-500/50 bg-gold-500/10 text-ink-50'
+                              : 'border-white/[0.07] bg-ink-850 text-ink-200 hover:border-white/15'
+                          }`}
+                        >
+                          <span
+                            className={`grid h-4 w-4 place-items-center rounded-full border ${
+                              resp[campo.id] === o
+                                ? 'border-gold-400 bg-gold-400'
+                                : 'border-ink-500'
+                            }`}
+                          >
+                            {resp[campo.id] === o && (
+                              <span className="h-1.5 w-1.5 rounded-full bg-ink-950" />
+                            )}
+                          </span>
+                          {o}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {campo.tipo === 'opcao_multipla' && (
+                    <div className="space-y-2">
+                      {(campo.opcoes ?? []).map((o) => {
+                        const sel: string[] = Array.isArray(resp[campo.id])
+                          ? resp[campo.id]
+                          : []
+                        const marcado = sel.includes(o)
+                        return (
+                          <button
+                            key={o}
+                            onClick={() =>
+                              setResp((p) => ({
+                                ...p,
+                                [campo.id]: marcado
+                                  ? sel.filter((x) => x !== o)
+                                  : [...sel, o],
+                              }))
+                            }
+                            className={`flex w-full items-center gap-2.5 rounded-xl border p-3 text-left text-sm transition-all ${
+                              marcado
+                                ? 'border-gold-500/50 bg-gold-500/10 text-ink-50'
+                                : 'border-white/[0.07] bg-ink-850 text-ink-200 hover:border-white/15'
+                            }`}
+                          >
+                            <span
+                              className={`grid h-4 w-4 place-items-center rounded border ${
+                                marcado
+                                  ? 'border-gold-400 bg-gold-400 text-ink-950'
+                                  : 'border-ink-500'
+                              }`}
+                            >
+                              {marcado && <Check size={11} />}
+                            </span>
+                            {o}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
-              ))}
-              <button
-                type="submit"
-                disabled={enviando}
-                className="btn-gold w-full"
-              >
-                {enviando ? 'Enviando…' : 'Enviar respostas'}
-              </button>
-            </div>
-          </motion.form>
+
+                <div className="mt-6 flex items-center justify-between">
+                  <button
+                    onClick={voltar}
+                    disabled={idx === 0}
+                    className="btn-ghost py-2 text-xs disabled:opacity-40"
+                  >
+                    <ArrowLeft size={14} /> Voltar
+                  </button>
+                  <button
+                    onClick={avancar}
+                    disabled={!respondido(campo) || enviando}
+                    className="btn-gold"
+                  >
+                    {ultimo
+                      ? enviando
+                        ? 'Enviando…'
+                        : 'Concluir'
+                      : 'Próxima'}
+                    {!ultimo && <ArrowRight size={15} />}
+                  </button>
+                </div>
+              </motion.div>
+            </AnimatePresence>
+          </div>
         )}
 
         <div className="mt-4 flex items-center justify-center gap-1.5 text-[11px] text-ink-600">

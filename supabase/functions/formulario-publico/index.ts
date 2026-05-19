@@ -101,7 +101,7 @@ Deno.serve(async (req) => {
     }
 
     if (req.method === 'POST') {
-      const { token, respostas } = await req.json()
+      const { token, respostas, tempos } = await req.json()
       const { data: resp } = await admin
         .from('formulario_respostas')
         .select('*, formularios(campos)')
@@ -128,6 +128,7 @@ Deno.serve(async (req) => {
         .update({
           status: 'respondido',
           respostas: respostas ?? {},
+          tempos: tempos ?? {},
           plano,
           plano_confirmado: false,
           respondido_em: new Date().toISOString(),

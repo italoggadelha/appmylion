@@ -745,7 +745,8 @@ export async function salvarRelatorio(
 export interface CampoForm {
   id: string
   label: string
-  tipo: string
+  tipo: string // texto | textarea | opcao_unica | opcao_multipla
+  opcoes?: string[]
 }
 export interface FormularioModelo {
   id: string
@@ -760,7 +761,8 @@ export interface RespostaForm {
   clienteId: string
   token: string
   status: string
-  respostas: Record<string, string>
+  respostas: Record<string, any>
+  tempos: Record<string, number>
   plano?: string
   planoConfirmado: boolean
   respondidoEm?: string
@@ -797,6 +799,7 @@ export async function listarRespostas(): Promise<RespostaForm[]> {
     token: r.token,
     status: r.status,
     respostas: r.respostas ?? {},
+    tempos: r.tempos ?? {},
     plano: r.plano ?? undefined,
     planoConfirmado: r.plano_confirmado,
     respondidoEm: r.respondido_em ?? undefined,
