@@ -75,6 +75,14 @@ Deno.serve(async (req) => {
         .maybeSingle()
 
       if (error || !data) return json({ error: 'falha_ao_salvar' }, 400)
+
+      // Automação: aprovação conclui a tarefa vinculada
+      if (decisao === 'aprovado' && data.tarefa_id) {
+        await admin
+          .from('tarefas')
+          .update({ status: 'concluida', concluido_em: new Date().toISOString() })
+          .eq('id', data.tarefa_id)
+      }
       return json({ ok: true })
     }
 

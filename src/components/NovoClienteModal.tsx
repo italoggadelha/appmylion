@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X } from 'lucide-react'
 import { useData } from '@/lib/data'
-import { criarCliente } from '@/lib/repo'
 import { SUPABASE_PRONTO } from '@/lib/supabase'
 import { FASES_RUGIDO } from '@/data/rugido'
 import type { ClienteStatus } from '@/lib/types'
@@ -20,7 +19,7 @@ export default function NovoClienteModal({
   aberto: boolean
   onFechar: () => void
 }) {
-  const { membros, recarregar } = useData()
+  const { membros, novoCliente } = useData()
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState('')
   const [f, setF] = useState({
@@ -48,13 +47,12 @@ export default function NovoClienteModal({
     setSalvando(true)
     try {
       if (!SUPABASE_PRONTO) throw new Error('Backend não configurado (modo demo).')
-      await criarCliente({
+      await novoCliente({
         ...f,
         faseAtual: f.faseAtual as any,
         ticket: Number(f.ticket) || 0,
         responsavelId: f.responsavelId || undefined,
       })
-      await recarregar()
       onFechar()
       setF({
         empresa: '', nome: '', segmento: '', plano: 'Performance',

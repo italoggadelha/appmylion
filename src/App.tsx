@@ -11,6 +11,7 @@ import Kanban from './pages/Kanban'
 import Aprovacoes from './pages/Aprovacoes'
 import AgentesIA from './pages/AgentesIA'
 import Equipe from './pages/Equipe'
+import Automacoes from './pages/Automacoes'
 import EmBreve from './pages/EmBreve'
 
 export default function App() {
@@ -37,10 +38,7 @@ export default function App() {
         <Route path="aprovacoes" element={<Aprovacoes />} />
         <Route path="agentes" element={<AgentesIA />} />
         <Route path="equipe" element={<Equipe />} />
-        <Route
-          path="automacoes"
-          element={<EmBreve titulo="Automações" fase="Fase 3" />}
-        />
+        <Route path="automacoes" element={<Automacoes />} />
         <Route
           path="relatorios"
           element={<EmBreve titulo="Relatórios & Inteligência" fase="Fase 3" />}

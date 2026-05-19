@@ -55,6 +55,16 @@ export interface Tarefa {
 
 export type AprovacaoStatus = 'pendente' | 'aprovado' | 'reprovado' | 'ajustes'
 
+export interface Automacao {
+  id: string
+  chave: string
+  nome: string
+  descricao?: string
+  gatilho: string
+  ativa: boolean
+  execucoes: number
+}
+
 export interface Aprovacao {
   id: string
   clienteId: string

@@ -14,6 +14,11 @@ import {
   atualizarTarefa,
   excluirTarefa,
   setSubtarefa,
+  criarCliente,
+  gerarTarefasFase,
+  atualizarCliente,
+  toggleAutomacao,
+  registrarExecucaoAutomacao,
   type Snapshot,
 } from './repo'
 import type { Cliente, Membro, Tarefa } from './types'
@@ -32,6 +37,10 @@ interface DataCtx extends Snapshot {
   salvarTarefa: (t: Partial<Tarefa> & { id?: string }) => Promise<void>
   removerTarefa: (id: string) => Promise<void>
   alternarSubtarefa: (subId: string, concluida: boolean) => void
+  novoCliente: (dados: Partial<Cliente>) => Promise<void>
+  avancarFase: (clienteId: string, novaFase: FaseId) => Promise<number>
+  alternarAutomacao: (id: string, ativa: boolean) => void
+  automacaoAtiva: (chave: string) => boolean
   // helpers
   clientePorId: (id: string) => Cliente | undefined
   membroPorId: (id: string) => Membro | undefined
@@ -41,7 +50,13 @@ interface DataCtx extends Snapshot {
 const Ctx = createContext<DataCtx>(null!)
 export const useData = () => useContext(Ctx)
 
-const VAZIO: Snapshot = { membros: [], clientes: [], tarefas: [], aprovacoes: [] }
+const VAZIO: Snapshot = {
+  membros: [],
+  clientes: [],
+  tarefas: [],
+  aprovacoes: [],
+  automacoes: [],
+}
 
 export function DataProvider({ children }: { children: ReactNode }) {
   const [snap, setSnap] = useState<Snapshot>(VAZIO)
@@ -105,6 +120,38 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setSubtarefa(subId, concluida).catch(() => recarregar())
   }
 
+  const automacaoAtiva = (chave: string) =>
+    snap.automacoes.find((a) => a.chave === chave)?.ativa ?? false
+
+  async function novoCliente(dados: Partial<Cliente>) {
+    const criado = await criarCliente(dados)
+    // Automação: gera as tarefas da fase inicial
+    if (criado?.id && automacaoAtiva('onboarding_cliente')) {
+      await gerarTarefasFase(criado.id, (dados.faseAtual ?? 'raiox') as FaseId)
+      await registrarExecucaoAutomacao('onboarding_cliente')
+    }
+    await recarregar()
+  }
+
+  async function avancarFase(clienteId: string, novaFase: FaseId) {
+    await atualizarCliente(clienteId, { fase_atual: novaFase })
+    let geradas = 0
+    if (automacaoAtiva('tarefas_da_fase')) {
+      geradas = await gerarTarefasFase(clienteId, novaFase)
+      await registrarExecucaoAutomacao('tarefas_da_fase')
+    }
+    await recarregar()
+    return geradas
+  }
+
+  function alternarAutomacao(id: string, ativa: boolean) {
+    setSnap((s) => ({
+      ...s,
+      automacoes: s.automacoes.map((a) => (a.id === id ? { ...a, ativa } : a)),
+    }))
+    toggleAutomacao(id, ativa).catch(() => recarregar())
+  }
+
   const valor: DataCtx = {
     ...snap,
     carregando,
@@ -115,6 +162,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
     salvarTarefa,
     removerTarefa,
     alternarSubtarefa,
+    novoCliente,
+    avancarFase,
+    alternarAutomacao,
+    automacaoAtiva,
     clientePorId: (id) => snap.clientes.find((c) => c.id === id),
     membroPorId: (id) => snap.membros.find((m) => m.id === id),
     tarefasDoCliente: (id) => snap.tarefas.filter((t) => t.clienteId === id),

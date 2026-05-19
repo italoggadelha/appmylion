@@ -31,9 +31,10 @@ import { Avatar, Badge, ProgressRing, ProgressBar } from '@/components/ui'
 
 export default function ClienteDetalhe() {
   const { id } = useParams()
-  const { clientePorId, tarefasDoCliente } = useData()
+  const { clientePorId, tarefasDoCliente, avancarFase } = useData()
   const cliente = clientePorId(id ?? '')
   const tarefas = cliente ? tarefasDoCliente(cliente.id) : []
+  const [avancando, setAvancando] = useState(false)
   const faseAtualIdx = cliente
     ? FASES_RUGIDO.findIndex((f) => f.id === cliente.faseAtual)
     : 0
@@ -67,6 +68,24 @@ export default function ClienteDetalhe() {
           100,
       )
     : 0
+
+  async function confirmarAvanco() {
+    if (!cliente) return
+    const prox = FASES_RUGIDO[faseAtualIdx + 1]
+    if (!prox) return
+    if (!confirm(`Aprovar a fase atual e avançar para "${prox.nome}"?`)) return
+    setAvancando(true)
+    try {
+      const geradas = await avancarFase(cliente.id, prox.id)
+      setFaseSel(prox.id)
+      if (geradas > 0)
+        alert(`Cliente avançou para ${prox.nome}. ${geradas} tarefas criadas automaticamente.`)
+    } catch {
+      alert('Não foi possível avançar a fase.')
+    } finally {
+      setAvancando(false)
+    }
+  }
 
   return (
     <div>
@@ -236,14 +255,23 @@ export default function ClienteDetalhe() {
               <Lock size={14} className="mt-0.5 shrink-0" />
               Fase bloqueada. Conclua e aprove as fases anteriores para liberar.
             </div>
+          ) : faseAtualIdx >= FASES_RUGIDO.length - 1 ? (
+            <div className="mt-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 text-center text-xs font-semibold text-emerald-300">
+              🚀 Última fase do RUGIDO — cliente em escala.
+            </div>
           ) : (
             <button
-              disabled={faseSelIdx !== faseAtualIdx || progFase < 100}
+              disabled={
+                faseSelIdx !== faseAtualIdx || progFase < 100 || avancando
+              }
+              onClick={confirmarAvanco}
               className="btn-gold mt-4 w-full disabled:cursor-not-allowed"
             >
-              {progFase < 100
-                ? 'Conclua as tarefas para avançar'
-                : 'Aprovar fase e avançar →'}
+              {avancando
+                ? 'Avançando…'
+                : progFase < 100
+                  ? 'Conclua as tarefas para avançar'
+                  : 'Aprovar fase e avançar →'}
             </button>
           )}
         </div>

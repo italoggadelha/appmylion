@@ -1,5 +1,6 @@
 import { supabase, SUPABASE_PRONTO } from './supabase'
-import type { Cliente, Membro, Tarefa, Aprovacao } from './types'
+import type { Cliente, Membro, Tarefa, Aprovacao, Automacao } from './types'
+import { FASES_RUGIDO, type FaseId } from '@/data/rugido'
 import * as mock from '@/data/mock'
 
 // ═══════════════════════════════════════════════════════════════════
@@ -73,6 +74,7 @@ export interface Snapshot {
   clientes: Cliente[]
   tarefas: Tarefa[]
   aprovacoes: Aprovacao[]
+  automacoes: Automacao[]
 }
 
 export async function carregarTudo(): Promise<Snapshot> {
@@ -82,17 +84,19 @@ export async function carregarTudo(): Promise<Snapshot> {
       clientes: mock.CLIENTES,
       tarefas: mock.TAREFAS,
       aprovacoes: mock.APROVACOES,
+      automacoes: [],
     }
   }
 
-  const [mRes, cRes, tRes, aRes] = await Promise.all([
+  const [mRes, cRes, tRes, aRes, auRes] = await Promise.all([
     supabase.from('membros').select('*').order('email'),
     supabase.from('clientes').select('*').order('empresa'),
     supabase.from('tarefas').select('*, subtarefas(*)').order('ordem'),
     supabase.from('aprovacoes').select('*').order('enviada_em', { ascending: false }),
+    supabase.from('automacoes').select('*').order('criado_em'),
   ])
 
-  const erro = mRes.error || cRes.error || tRes.error || aRes.error
+  const erro = mRes.error || cRes.error || tRes.error || aRes.error || auRes.error
   if (erro) throw erro
 
   const membros = (mRes.data ?? []).map(mapMembro)
@@ -103,6 +107,7 @@ export async function carregarTudo(): Promise<Snapshot> {
     clientes: (cRes.data ?? []).map((r) => mapCliente(r, nomes)),
     tarefas: (tRes.data ?? []).map((r) => mapTarefa(r, nomes)),
     aprovacoes: (aRes.data ?? []).map(mapAprovacao),
+    automacoes: (auRes.data ?? []) as Automacao[],
   }
 }
 
@@ -198,6 +203,53 @@ export async function criarAprovacao(a: {
     .single()
   if (error) throw error
   return data as { token: string }
+}
+
+export async function gerarTarefasFase(clienteId: string, fase: FaseId) {
+  if (!SUPABASE_PRONTO) return 0
+  const def = FASES_RUGIDO.find((f) => f.id === fase)
+  if (!def) return 0
+  const linhas = def.tarefasPadrao.map((titulo, i) => ({
+    cliente_id: clienteId,
+    fase,
+    titulo,
+    status: 'a_fazer',
+    prioridade: 'media',
+    ordem: i + 1,
+  }))
+  const { error } = await supabase.from('tarefas').insert(linhas)
+  if (error) throw error
+  return linhas.length
+}
+
+export async function atualizarCliente(id: string, campos: Record<string, unknown>) {
+  if (!SUPABASE_PRONTO) return
+  const { error } = await supabase.from('clientes').update(campos).eq('id', id)
+  if (error) throw error
+}
+
+export async function toggleAutomacao(id: string, ativa: boolean) {
+  if (!SUPABASE_PRONTO) return
+  const { error } = await supabase
+    .from('automacoes')
+    .update({ ativa })
+    .eq('id', id)
+  if (error) throw error
+}
+
+export async function registrarExecucaoAutomacao(chave: string) {
+  if (!SUPABASE_PRONTO) return
+  const { data } = await supabase
+    .from('automacoes')
+    .select('id, execucoes')
+    .eq('chave', chave)
+    .maybeSingle()
+  if (data) {
+    await supabase
+      .from('automacoes')
+      .update({ execucoes: (data.execucoes ?? 0) + 1 })
+      .eq('id', data.id)
+  }
 }
 
 export async function criarCliente(c: Partial<Cliente>) {
