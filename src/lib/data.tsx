@@ -10,6 +10,10 @@ import {
   carregarTudo,
   atualizarStatusTarefa,
   atualizarFaseTarefa,
+  criarTarefa,
+  atualizarTarefa,
+  excluirTarefa,
+  setSubtarefa,
   type Snapshot,
 } from './repo'
 import type { Cliente, Membro, Tarefa } from './types'
@@ -25,6 +29,9 @@ interface DataCtx extends Snapshot {
   recarregar: () => Promise<void>
   moverTarefa: (id: string, status: Tarefa['status']) => void
   moverTarefaFase: (id: string, fase: FaseId) => void
+  salvarTarefa: (t: Partial<Tarefa> & { id?: string }) => Promise<void>
+  removerTarefa: (id: string) => Promise<void>
+  alternarSubtarefa: (subId: string, concluida: boolean) => void
   // helpers
   clientePorId: (id: string) => Cliente | undefined
   membroPorId: (id: string) => Membro | undefined
@@ -74,6 +81,30 @@ export function DataProvider({ children }: { children: ReactNode }) {
     atualizarFaseTarefa(id, fase).catch(() => recarregar())
   }
 
+  async function salvarTarefa(t: Partial<Tarefa> & { id?: string }) {
+    if (t.id) await atualizarTarefa(t.id, t)
+    else await criarTarefa(t)
+    await recarregar()
+  }
+
+  async function removerTarefa(id: string) {
+    await excluirTarefa(id)
+    await recarregar()
+  }
+
+  function alternarSubtarefa(subId: string, concluida: boolean) {
+    setSnap((s) => ({
+      ...s,
+      tarefas: s.tarefas.map((t) => ({
+        ...t,
+        subtarefas: t.subtarefas.map((sub) =>
+          sub.id === subId ? { ...sub, concluida } : sub,
+        ),
+      })),
+    }))
+    setSubtarefa(subId, concluida).catch(() => recarregar())
+  }
+
   const valor: DataCtx = {
     ...snap,
     carregando,
@@ -81,6 +112,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
     recarregar,
     moverTarefa,
     moverTarefaFase,
+    salvarTarefa,
+    removerTarefa,
+    alternarSubtarefa,
     clientePorId: (id) => snap.clientes.find((c) => c.id === id),
     membroPorId: (id) => snap.membros.find((m) => m.id === id),
     tarefasDoCliente: (id) => snap.tarefas.filter((t) => t.clienteId === id),

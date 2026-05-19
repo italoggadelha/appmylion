@@ -9,8 +9,11 @@ import {
   Paperclip,
   Send,
   ChevronRight,
+  Pencil,
+  Plus,
 } from 'lucide-react'
 import { useData } from '@/lib/data'
+import TarefaModal from '@/components/TarefaModal'
 import {
   FASES_RUGIDO,
   faseById,
@@ -32,6 +35,9 @@ export default function ClienteDetalhe() {
     ? FASES_RUGIDO.findIndex((f) => f.id === cliente.faseAtual)
     : 0
   const [faseSel, setFaseSel] = useState<FaseId>(cliente?.faseAtual ?? 'raiox')
+  const [modal, setModal] = useState<{ aberto: boolean; tarefa?: Tarefa }>({
+    aberto: false,
+  })
 
   if (!cliente) {
     return (
@@ -245,7 +251,12 @@ export default function ClienteDetalhe() {
             <h3 className="font-display text-sm font-bold text-ink-100">
               Tarefas da fase
             </h3>
-            <button className="btn-ghost py-1.5 text-xs">+ Tarefa</button>
+            <button
+              className="btn-ghost py-1.5 text-xs"
+              onClick={() => setModal({ aberto: true })}
+            >
+              <Plus size={13} /> Tarefa
+            </button>
           </div>
           <div className="space-y-2">
             {tarefasFase.length === 0 && (
@@ -254,17 +265,36 @@ export default function ClienteDetalhe() {
               </div>
             )}
             {tarefasFase.map((t) => (
-              <TarefaCard key={t.id} tarefa={t} />
+              <TarefaCard
+                key={t.id}
+                tarefa={t}
+                onEditar={() => setModal({ aberto: true, tarefa: t })}
+              />
             ))}
           </div>
         </div>
       </div>
+
+      <TarefaModal
+        aberto={modal.aberto}
+        onFechar={() => setModal({ aberto: false })}
+        clienteId={cliente.id}
+        faseInicial={faseSel}
+        tarefa={modal.tarefa}
+      />
     </div>
   )
 }
 
 // ── Card de tarefa expansível ───────────────────────────────────────
-function TarefaCard({ tarefa }: { tarefa: Tarefa }) {
+function TarefaCard({
+  tarefa,
+  onEditar,
+}: {
+  tarefa: Tarefa
+  onEditar: () => void
+}) {
+  const { alternarSubtarefa } = useData()
   const [aberta, setAberta] = useState(false)
   const subFeitas = tarefa.subtarefas.filter((s) => s.concluida).length
   const atrasada =
@@ -336,13 +366,18 @@ function TarefaCard({ tarefa }: { tarefa: Tarefa }) {
             Checklist
           </div>
           <div className="mt-2 space-y-1.5">
+            {tarefa.subtarefas.length === 0 && (
+              <p className="text-xs text-ink-600">Sem itens de checklist.</p>
+            )}
             {tarefa.subtarefas.map((s) => (
-              <label
+              <button
                 key={s.id}
-                className="flex cursor-pointer items-center gap-2.5 text-sm"
+                type="button"
+                onClick={() => alternarSubtarefa(s.id, !s.concluida)}
+                className="flex w-full cursor-pointer items-center gap-2.5 text-left text-sm"
               >
                 <span
-                  className={`grid h-4 w-4 place-items-center rounded border ${
+                  className={`grid h-4 w-4 shrink-0 place-items-center rounded border transition-colors ${
                     s.concluida
                       ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400'
                       : 'border-ink-500'
@@ -357,10 +392,13 @@ function TarefaCard({ tarefa }: { tarefa: Tarefa }) {
                 >
                   {s.titulo}
                 </span>
-              </label>
+              </button>
             ))}
           </div>
-          <div className="mt-4 flex gap-2">
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button onClick={onEditar} className="btn-ghost py-1.5 text-xs">
+              <Pencil size={13} /> Editar tarefa
+            </button>
             <button className="btn-ghost py-1.5 text-xs">
               <MessageSquare size={13} /> Comentar
             </button>

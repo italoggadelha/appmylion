@@ -125,6 +125,60 @@ export async function atualizarFaseTarefa(id: string, fase: string) {
   if (error) throw error
 }
 
+export async function criarTarefa(t: Partial<Tarefa>) {
+  if (!SUPABASE_PRONTO) throw new Error('Supabase não configurado')
+  const { data, error } = await supabase
+    .from('tarefas')
+    .insert({
+      cliente_id: t.clienteId,
+      fase: t.fase,
+      titulo: t.titulo,
+      descricao: t.descricao || null,
+      status: t.status ?? 'a_fazer',
+      prioridade: t.prioridade ?? 'media',
+      responsavel_id: t.responsavelId || null,
+      prazo: t.prazo || null,
+      precisa_aprovacao: !!t.precisaAprovacao,
+    })
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function atualizarTarefa(id: string, t: Partial<Tarefa>) {
+  if (!SUPABASE_PRONTO) return
+  const campos: Record<string, unknown> = {}
+  if (t.titulo !== undefined) campos.titulo = t.titulo
+  if (t.descricao !== undefined) campos.descricao = t.descricao || null
+  if (t.fase !== undefined) campos.fase = t.fase
+  if (t.status !== undefined) {
+    campos.status = t.status
+    campos.concluido_em = t.status === 'concluida' ? new Date().toISOString() : null
+  }
+  if (t.prioridade !== undefined) campos.prioridade = t.prioridade
+  if (t.responsavelId !== undefined) campos.responsavel_id = t.responsavelId || null
+  if (t.prazo !== undefined) campos.prazo = t.prazo || null
+  if (t.precisaAprovacao !== undefined) campos.precisa_aprovacao = t.precisaAprovacao
+  const { error } = await supabase.from('tarefas').update(campos).eq('id', id)
+  if (error) throw error
+}
+
+export async function excluirTarefa(id: string) {
+  if (!SUPABASE_PRONTO) return
+  const { error } = await supabase.from('tarefas').delete().eq('id', id)
+  if (error) throw error
+}
+
+export async function setSubtarefa(id: string, concluida: boolean) {
+  if (!SUPABASE_PRONTO) return
+  const { error } = await supabase
+    .from('subtarefas')
+    .update({ concluida })
+    .eq('id', id)
+  if (error) throw error
+}
+
 export async function criarCliente(c: Partial<Cliente>) {
   if (!SUPABASE_PRONTO) throw new Error('Supabase não configurado')
   const { data, error } = await supabase
