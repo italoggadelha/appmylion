@@ -63,6 +63,8 @@ const mapCliente = (r: any, nomes: Map<string, string>): Cliente => ({
   healthScore: r.health_score ?? 50,
   logoUrl: r.logo_url ?? undefined,
   observacoes: r.observacoes ?? undefined,
+  driveUrl: r.drive_url ?? undefined,
+  mesesContrato: r.meses_contrato ?? undefined,
 })
 
 const mapTarefa = (r: any, nomes: Map<string, string>): Tarefa => ({
@@ -401,13 +403,18 @@ export async function salvarTemplate(t: Partial<TarefaTemplate> & { id?: string 
   if (t.id) {
     const { error } = await supabase
       .from('tarefa_templates')
-      .update({ titulo: t.titulo, fase: t.fase, ordem: t.ordem })
+      .update({ titulo: t.titulo, fase: t.fase, ordem: t.ordem, funcao: t.funcao ?? null })
       .eq('id', t.id)
     if (error) throw error
   } else {
     const { error } = await supabase
       .from('tarefa_templates')
-      .insert({ titulo: t.titulo, fase: t.fase, ordem: t.ordem ?? 99 })
+      .insert({
+        titulo: t.titulo,
+        fase: t.fase,
+        ordem: t.ordem ?? 99,
+        funcao: t.funcao ?? null,
+      })
     if (error) throw error
   }
 }
@@ -520,6 +527,36 @@ export async function toggleAutomacao(id: string, ativa: boolean) {
   if (error) throw error
 }
 
+export async function criarAutomacao(a: {
+  nome: string
+  descricao: string
+  gatilho: string
+  acao: string
+}) {
+  if (!SUPABASE_PRONTO) throw new Error('Supabase não configurado')
+  const chave =
+    'custom_' +
+    a.nome.toLowerCase().normalize('NFD').replace(/[^\w]/g, '_').slice(0, 30) +
+    '_' +
+    Date.now().toString(36)
+  const { error } = await supabase.from('automacoes').insert({
+    chave,
+    nome: a.nome,
+    descricao: a.descricao,
+    gatilho: a.gatilho,
+    acao: a.acao,
+    custom: true,
+    ativa: true,
+  })
+  if (error) throw error
+}
+
+export async function excluirAutomacao(id: string) {
+  if (!SUPABASE_PRONTO) return
+  const { error } = await supabase.from('automacoes').delete().eq('id', id)
+  if (error) throw error
+}
+
 export async function registrarExecucaoAutomacao(chave: string) {
   if (!SUPABASE_PRONTO) return
   const { data } = await supabase
@@ -549,6 +586,8 @@ export async function criarCliente(c: Partial<Cliente>) {
       ticket: c.ticket ?? 0,
       responsavel_id: c.responsavelId || null,
       logo_url: c.logoUrl || null,
+      drive_url: c.driveUrl || null,
+      meses_contrato: c.mesesContrato || null,
     })
     .select()
     .single()

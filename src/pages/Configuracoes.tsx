@@ -17,7 +17,7 @@ import {
   excluirTemplate,
   moverTemplateFase,
 } from '@/lib/repo'
-import { FASES_RUGIDO, type FaseId } from '@/data/rugido'
+import { FASES_RUGIDO, FUNCOES, type FaseId } from '@/data/rugido'
 import type { StatusTarefa, TarefaTemplate } from '@/lib/types'
 import { PageHeader } from '@/components/ui'
 
@@ -181,30 +181,49 @@ function TemplateCard({ tpl }: { tpl: TarefaTemplate }) {
     await recarregar()
   }
 
+  async function mudarFuncao(funcao: string) {
+    await salvarTemplate({ id: tpl.id, titulo: tpl.titulo, fase: tpl.fase, ordem: tpl.ordem, funcao })
+    await recarregar()
+  }
+
+  const cor = FUNCOES.find((f) => f.id === tpl.funcao)?.cor ?? '#4a4a57'
+
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-ink-850 p-2 ${
+      className={`rounded-lg border border-white/[0.06] bg-ink-850 p-2 ${
         isDragging ? 'z-50 opacity-90 shadow-gold' : ''
       }`}
     >
-      <span
-        {...listeners}
-        {...attributes}
-        className="cursor-grab text-ink-600 active:cursor-grabbing"
+      <div className="flex items-center gap-1.5">
+        <span
+          {...listeners}
+          {...attributes}
+          className="cursor-grab text-ink-600 active:cursor-grabbing"
+        >
+          <GripVertical size={14} />
+        </span>
+        <span className="min-w-0 flex-1 truncate text-xs text-ink-100">
+          {tpl.titulo}
+        </span>
+        <button onClick={remover} className="text-ink-600 hover:text-red-400">
+          <Trash2 size={12} />
+        </button>
+      </div>
+      <select
+        value={tpl.funcao ?? ''}
+        onChange={(e) => mudarFuncao(e.target.value)}
+        className="mt-1.5 w-full rounded-md border border-white/[0.06] bg-ink-900 px-1.5 py-1 text-[10px] font-semibold outline-none"
+        style={{ color: cor }}
       >
-        <GripVertical size={14} />
-      </span>
-      <span className="min-w-0 flex-1 truncate text-xs text-ink-100">
-        {tpl.titulo}
-      </span>
-      <button
-        onClick={remover}
-        className="text-ink-600 hover:text-red-400"
-      >
-        <Trash2 size={12} />
-      </button>
+        <option value="">— Função responsável —</option>
+        {FUNCOES.map((f) => (
+          <option key={f.id} value={f.id}>
+            {f.nome}
+          </option>
+        ))}
+      </select>
     </div>
   )
 }

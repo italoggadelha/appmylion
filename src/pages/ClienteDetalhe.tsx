@@ -12,6 +12,7 @@ import {
   Pencil,
   Plus,
   Copy,
+  HardDrive,
 } from 'lucide-react'
 import { useData } from '@/lib/data'
 import { criarAprovacao } from '@/lib/repo'
@@ -99,7 +100,7 @@ export default function ClienteDetalhe() {
       {/* Cabeçalho do cliente */}
       <div className="panel p-5">
         <div className="flex flex-wrap items-center gap-4">
-          <Avatar nome={cliente.empresa} size={56} />
+          <Avatar nome={cliente.empresa} url={cliente.logoUrl} size={64} />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <h1 className="font-display text-xl font-bold text-ink-50">
@@ -111,7 +112,18 @@ export default function ClienteDetalhe() {
             </div>
             <p className="text-sm text-ink-400">
               {cliente.nome} · {cliente.segmento}
+              {cliente.mesesContrato ? ` · contrato ${cliente.mesesContrato} meses` : ''}
             </p>
+            {cliente.driveUrl && (
+              <a
+                href={cliente.driveUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-1 inline-flex items-center gap-1.5 text-xs font-semibold text-gold-400 hover:text-gold-300"
+              >
+                <HardDrive size={13} /> Materiais no Google Drive
+              </a>
+            )}
           </div>
 
           <div className="flex items-center gap-5">

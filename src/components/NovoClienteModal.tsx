@@ -36,6 +36,8 @@ export default function NovoClienteModal({
     status: 'onboarding' as ClienteStatus,
     faseAtual: 'raiox',
     responsavelId: '',
+    driveUrl: '',
+    mesesContrato: '6',
   })
 
   async function subirFoto(file: File) {
@@ -69,12 +71,15 @@ export default function NovoClienteModal({
         ticket: Number(f.ticket) || 0,
         responsavelId: f.responsavelId || undefined,
         logoUrl: foto || undefined,
+        driveUrl: f.driveUrl || undefined,
+        mesesContrato: Number(f.mesesContrato) || undefined,
       })
       onFechar()
       setFoto('')
       setF({
         empresa: '', nome: '', segmento: '', plano: 'Performance',
         ticket: '', status: 'onboarding', faseAtual: 'raiox', responsavelId: '',
+        driveUrl: '', mesesContrato: '6',
       })
     } catch (e: any) {
       setErro(e?.message ?? 'Falha ao salvar.')
@@ -203,7 +208,7 @@ export default function NovoClienteModal({
                   ))}
                 </select>
               </Campo>
-              <Campo label="Responsável" full>
+              <Campo label="Responsável">
                 <select
                   className="input"
                   value={f.responsavelId}
@@ -216,6 +221,27 @@ export default function NovoClienteModal({
                     </option>
                   ))}
                 </select>
+              </Campo>
+              <Campo label="Contrato (meses)">
+                <select
+                  className="input"
+                  value={f.mesesContrato}
+                  onChange={(e) => set('mesesContrato', e.target.value)}
+                >
+                  {['3', '6', '9', '12'].map((m) => (
+                    <option key={m} value={m}>
+                      {m} meses
+                    </option>
+                  ))}
+                </select>
+              </Campo>
+              <Campo label="Link do Google Drive (materiais)" full>
+                <input
+                  className="input"
+                  placeholder="https://drive.google.com/…"
+                  value={f.driveUrl}
+                  onChange={(e) => set('driveUrl', e.target.value)}
+                />
               </Campo>
             </div>
 

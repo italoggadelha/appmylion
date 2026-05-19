@@ -27,6 +27,8 @@ export interface Cliente {
   healthScore: number // 0-100
   logoUrl?: string
   observacoes?: string
+  driveUrl?: string
+  mesesContrato?: number
 }
 
 export interface Subtarefa {
@@ -83,6 +85,7 @@ export interface TarefaTemplate {
   fase: FaseId
   titulo: string
   ordem: number
+  funcao?: string | null
 }
 
 export type AnexoCategoria = 'aprovacao' | 'ideia' | 'apoio'
@@ -104,7 +107,9 @@ export interface Automacao {
   nome: string
   descricao?: string
   gatilho: string
+  acao?: string
   ativa: boolean
+  custom?: boolean
   execucoes: number
 }
 

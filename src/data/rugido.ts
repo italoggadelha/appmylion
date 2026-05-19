@@ -203,6 +203,19 @@ export const PRIORIDADE_COR: Record<Prioridade, string> = {
   critica: '#ef4444',
 }
 
+// Funções da equipe (níveis responsáveis por tarefas)
+export const FUNCOES = [
+  { id: 'estrategia', nome: 'Estrategista', cor: '#8b5cf6' },
+  { id: 'design', nome: 'Design', cor: '#ec4899' },
+  { id: 'conteudo', nome: 'Gestor de Conteúdo', cor: '#5b8def' },
+  { id: 'trafego', nome: 'Gestor de Tráfego', cor: '#10b981' },
+  { id: 'webdesign', nome: 'Web Designer', cor: '#f59e0b' },
+  { id: 'copy', nome: 'Copywriter', cor: '#06b6d4' },
+] as const
+
+export const funcaoInfo = (id?: string | null) =>
+  FUNCOES.find((f) => f.id === id)
+
 // Perfis de acesso
 export type Perfil =
   | 'ceo'
