@@ -1,6 +1,22 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  useSortable,
+  arrayMove,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import {
   FileQuestion,
+  GripVertical,
   Plus,
   Copy,
   ExternalLink,
@@ -420,13 +436,118 @@ function EnviarModal({
     </div>
   )
 }
-// ── Aba de modelos (construtor de formulário) ───────────────────────
+// ── Aba de modelos (construtor drag-and-drop) ───────────────────────
 const TIPOS = [
   { v: 'textarea', l: 'Resposta longa' },
   { v: 'texto', l: 'Resposta curta' },
   { v: 'opcao_unica', l: 'Escolha única' },
   { v: 'opcao_multipla', l: 'Múltipla escolha' },
 ]
+
+function CampoCard({
+  campo,
+  indice,
+  onChange,
+  onRemover,
+}: {
+  campo: CampoForm
+  indice: number
+  onChange: (patch: Partial<CampoForm>) => void
+  onRemover: () => void
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: campo.id })
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+  }
+  const ehOpcao = campo.tipo === 'opcao_unica' || campo.tipo === 'opcao_multipla'
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="rounded-xl border border-white/[0.07] bg-ink-850 p-3"
+    >
+      <div className="flex items-center gap-2">
+        <span
+          {...attributes}
+          {...listeners}
+          className="cursor-grab text-ink-600 active:cursor-grabbing"
+        >
+          <GripVertical size={16} />
+        </span>
+        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-ink-700 text-[11px] font-bold text-ink-300">
+          {indice + 1}
+        </span>
+        <input
+          className="input flex-1 py-1.5"
+          placeholder="Texto da pergunta"
+          value={campo.label}
+          onChange={(e) => onChange({ label: e.target.value })}
+        />
+        <button
+          onClick={onRemover}
+          className="text-ink-500 hover:text-red-400"
+        >
+          <Trash2 size={14} />
+        </button>
+      </div>
+      <div className="mt-2 flex flex-wrap gap-1 pl-8">
+        {TIPOS.map((t) => (
+          <button
+            key={t.v}
+            onClick={() => onChange({ tipo: t.v })}
+            className={`rounded-md px-2 py-1 text-[10px] font-semibold ${
+              campo.tipo === t.v
+                ? 'bg-gold-500/15 text-gold-200'
+                : 'bg-ink-800 text-ink-400'
+            }`}
+          >
+            {t.l}
+          </button>
+        ))}
+      </div>
+      {ehOpcao && (
+        <div className="mt-2 space-y-1 pl-8">
+          {(campo.opcoes ?? []).map((o, oi) => (
+            <div key={oi} className="flex gap-1.5">
+              <input
+                className="input flex-1 py-1 text-xs"
+                placeholder={`Opção ${oi + 1}`}
+                value={o}
+                onChange={(e) => {
+                  const ops = [...(campo.opcoes ?? [])]
+                  ops[oi] = e.target.value
+                  onChange({ opcoes: ops })
+                }}
+              />
+              <button
+                onClick={() =>
+                  onChange({
+                    opcoes: (campo.opcoes ?? []).filter((_, x) => x !== oi),
+                  })
+                }
+                className="text-ink-500 hover:text-red-400"
+              >
+                <Trash2 size={12} />
+              </button>
+            </div>
+          ))}
+          <button
+            onClick={() =>
+              onChange({ opcoes: [...(campo.opcoes ?? []), ''] })
+            }
+            className="text-[11px] font-semibold text-gold-400 hover:text-gold-300"
+          >
+            + adicionar opção
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
 
 function ModelosTab({
   modelos,
@@ -435,10 +556,33 @@ function ModelosTab({
   modelos: FormularioModelo[]
   onMudou: () => void
 }) {
+  const [editId, setEditId] = useState<string | null>(null)
   const [criando, setCriando] = useState(false)
   const [nome, setNome] = useState('')
   const [descricao, setDescricao] = useState('')
   const [campos, setCampos] = useState<CampoForm[]>([])
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+  )
+
+  function abrirEdicao(m: FormularioModelo) {
+    setEditId(m.id)
+    setCriando(true)
+    setNome(m.nome)
+    setDescricao(m.descricao ?? '')
+    setCampos(m.campos.map((c) => ({ ...c })))
+  }
+  function abrirNovo() {
+    setEditId(null)
+    setCriando(true)
+    setNome('')
+    setDescricao('')
+    setCampos([])
+  }
+  function fechar() {
+    setCriando(false)
+    setEditId(null)
+  }
 
   function addCampo() {
     setCampos((c) => [
@@ -449,37 +593,56 @@ function ModelosTab({
   function upCampo(id: string, patch: Partial<CampoForm>) {
     setCampos((cs) => cs.map((c) => (c.id === id ? { ...c, ...patch } : c)))
   }
+  function onDragEnd(e: DragEndEvent) {
+    const { active, over } = e
+    if (!over || active.id === over.id) return
+    setCampos((cs) => {
+      const oi = cs.findIndex((c) => c.id === active.id)
+      const ni = cs.findIndex((c) => c.id === over.id)
+      return arrayMove(cs, oi, ni)
+    })
+  }
 
   async function salvar() {
     const validos = campos.filter((c) => c.label.trim())
     if (!nome.trim() || validos.length === 0) return
-    await salvarFormulario({ nome, descricao, campos: validos })
-    setCriando(false)
-    setNome('')
-    setDescricao('')
-    setCampos([])
+    await salvarFormulario({ id: editId ?? undefined, nome, descricao, campos: validos })
+    fechar()
     onMudou()
   }
 
   return (
     <div className="space-y-3">
       {modelos.map((m) => (
-        <div key={m.id} className="panel p-4">
+        <button
+          key={m.id}
+          onClick={() => abrirEdicao(m)}
+          className="panel panel-hover block w-full p-4 text-left"
+        >
           <div className="flex items-center gap-2">
             <FileQuestion size={16} className="text-gold-400" />
             <span className="font-display text-sm font-bold text-ink-50">
               {m.nome}
             </span>
             <Badge cor="#5b8def">{m.campos.length} perguntas</Badge>
+            <span className="ml-auto text-[11px] text-ink-500">Editar →</span>
           </div>
           {m.descricao && (
             <p className="mt-1 text-xs text-ink-400">{m.descricao}</p>
           )}
-        </div>
+        </button>
       ))}
 
       {criando ? (
         <div className="panel space-y-3 p-5">
+          <div className="flex items-center justify-between">
+            <h3 className="font-display text-sm font-bold text-ink-100">
+              {editId ? 'Editar formulário' : 'Novo formulário'}
+            </h3>
+            <button onClick={fechar} className="text-ink-400 hover:text-ink-100">
+              <X size={16} />
+            </button>
+          </div>
           <input
             className="input"
             placeholder="Nome do formulário"
@@ -493,95 +656,40 @@ function ModelosTab({
             onChange={(e) => setDescricao(e.target.value)}
           />
 
-          {/* Cards de perguntas */}
-          <div className="space-y-2">
-            {campos.map((c, i) => (
-              <div
-                key={c.id}
-                className="rounded-xl border border-white/[0.07] bg-ink-850 p-3"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-ink-700 text-[11px] font-bold text-ink-300">
-                    {i + 1}
-                  </span>
-                  <input
-                    className="input flex-1 py-1.5"
-                    placeholder="Texto da pergunta"
-                    value={c.label}
-                    onChange={(e) => upCampo(c.id, { label: e.target.value })}
-                  />
-                  <button
-                    onClick={() =>
+          <p className="text-[11px] text-ink-500">
+            Arraste pelas alças <GripVertical size={11} className="inline" /> para
+            reordenar as perguntas.
+          </p>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={onDragEnd}
+          >
+            <SortableContext
+              items={campos.map((c) => c.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-2">
+                {campos.map((c, i) => (
+                  <CampoCard
+                    key={c.id}
+                    campo={c}
+                    indice={i}
+                    onChange={(patch) => upCampo(c.id, patch)}
+                    onRemover={() =>
                       setCampos((cs) => cs.filter((x) => x.id !== c.id))
                     }
-                    className="text-ink-500 hover:text-red-400"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {TIPOS.map((t) => (
-                    <button
-                      key={t.v}
-                      onClick={() => upCampo(c.id, { tipo: t.v })}
-                      className={`rounded-md px-2 py-1 text-[10px] font-semibold ${
-                        c.tipo === t.v
-                          ? 'bg-gold-500/15 text-gold-200'
-                          : 'bg-ink-800 text-ink-400'
-                      }`}
-                    >
-                      {t.l}
-                    </button>
-                  ))}
-                </div>
-                {(c.tipo === 'opcao_unica' || c.tipo === 'opcao_multipla') && (
-                  <div className="mt-2 space-y-1">
-                    {(c.opcoes ?? []).map((o, oi) => (
-                      <div key={oi} className="flex gap-1.5">
-                        <input
-                          className="input flex-1 py-1 text-xs"
-                          placeholder={`Opção ${oi + 1}`}
-                          value={o}
-                          onChange={(e) => {
-                            const ops = [...(c.opcoes ?? [])]
-                            ops[oi] = e.target.value
-                            upCampo(c.id, { opcoes: ops })
-                          }}
-                        />
-                        <button
-                          onClick={() =>
-                            upCampo(c.id, {
-                              opcoes: (c.opcoes ?? []).filter(
-                                (_, x) => x !== oi,
-                              ),
-                            })
-                          }
-                          className="text-ink-500 hover:text-red-400"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    ))}
-                    <button
-                      onClick={() =>
-                        upCampo(c.id, { opcoes: [...(c.opcoes ?? []), ''] })
-                      }
-                      className="text-[11px] font-semibold text-gold-400 hover:text-gold-300"
-                    >
-                      + adicionar opção
-                    </button>
-                  </div>
-                )}
+                  />
+                ))}
               </div>
-            ))}
-          </div>
+            </SortableContext>
+          </DndContext>
 
           <button onClick={addCampo} className="btn-ghost w-full">
             <Plus size={15} /> Adicionar pergunta
           </button>
-
           <div className="flex justify-end gap-2">
-            <button onClick={() => setCriando(false)} className="btn-ghost">
+            <button onClick={fechar} className="btn-ghost">
               Cancelar
             </button>
             <button onClick={salvar} className="btn-gold">
@@ -591,7 +699,7 @@ function ModelosTab({
         </div>
       ) : (
         <button
-          onClick={() => setCriando(true)}
+          onClick={abrirNovo}
           className="panel panel-hover flex w-full items-center justify-center gap-2 py-4 text-sm font-semibold text-ink-300"
         >
           <Plus size={16} /> Novo modelo de formulário

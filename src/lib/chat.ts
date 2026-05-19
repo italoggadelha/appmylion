@@ -14,6 +14,7 @@ const mapConversa = (r: any): Conversa => ({
   status: r.status,
   ultimaMsg: r.ultima_msg ?? undefined,
   ultimaEm: r.ultima_em,
+  participantes: r.participantes ?? [],
 })
 
 const mapMensagem = (r: any): Mensagem => ({
@@ -95,6 +96,7 @@ export async function criarConversa(c: {
   titulo?: string
   tipo: string
   canal: string
+  participantes?: string[]
 }) {
   if (!SUPABASE_PRONTO) throw new Error('Supabase não configurado')
   const { data, error } = await supabase
@@ -104,6 +106,7 @@ export async function criarConversa(c: {
       titulo: c.titulo ?? null,
       tipo: c.tipo,
       canal: c.canal,
+      participantes: c.participantes ?? [],
     })
     .select()
     .single()

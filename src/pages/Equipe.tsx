@@ -15,6 +15,9 @@ const PERMS = [
   { k: 'financeiro', l: 'Financeiro' },
   { k: 'ia', l: 'IA' },
   { k: 'relatorios', l: 'Relatórios' },
+  { k: 'chat', l: 'Chat' },
+  { k: 'grupos', l: 'Grupos' },
+  { k: 'chat_automacoes', l: 'Autom. chat' },
 ]
 const COR = ['#b8943f', '#8b5cf6', '#5b8def', '#10b981', '#06b6d4', '#4a4a57']
 
@@ -98,7 +101,8 @@ export default function Equipe() {
             <Settings size={13} /> Editar perfis
           </Link>
         </div>
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[680px] text-sm">
           <thead>
             <tr className="text-[11px] uppercase tracking-wide text-ink-500">
               <th className="px-4 py-2.5 text-left font-semibold">Perfil</th>
@@ -131,6 +135,7 @@ export default function Equipe() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   )

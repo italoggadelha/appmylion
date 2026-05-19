@@ -37,6 +37,9 @@ const PERMS = [
   { k: 'financeiro', l: 'Financeiro' },
   { k: 'ia', l: 'IA' },
   { k: 'relatorios', l: 'Relatórios' },
+  { k: 'chat', l: 'Chat' },
+  { k: 'grupos', l: 'Grupos' },
+  { k: 'chat_automacoes', l: 'Autom. chat' },
 ]
 
 export default function Configuracoes() {
@@ -210,24 +213,30 @@ function AbaPerfis() {
           Clique nas células para liberar ou bloquear cada permissão.
         </p>
       </div>
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="text-[11px] uppercase tracking-wide text-ink-500">
-            <th className="px-4 py-2.5 text-left font-semibold">Perfil</th>
-            {PERMS.map((p) => (
-              <th key={p.k} className="px-2 py-2.5 text-center font-semibold">
-                {p.l}
-              </th>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[680px] text-sm">
+          <thead>
+            <tr className="text-[11px] uppercase tracking-wide text-ink-500">
+              <th className="px-4 py-2.5 text-left font-semibold">Perfil</th>
+              {PERMS.map((p) => (
+                <th key={p.k} className="px-2 py-2.5 text-center font-semibold">
+                  {p.l}
+                </th>
+              ))}
+              <th className="px-2" />
+            </tr>
+          </thead>
+          <tbody>
+            {perfis.map((perfil) => (
+              <LinhaPerfil
+                key={perfil.id}
+                perfil={perfil}
+                onMudou={recarregar}
+              />
             ))}
-            <th className="px-2" />
-          </tr>
-        </thead>
-        <tbody>
-          {perfis.map((perfil) => (
-            <LinhaPerfil key={perfil.id} perfil={perfil} onMudou={recarregar} />
-          ))}
-        </tbody>
-      </table>
+          </tbody>
+        </table>
+      </div>
       <div className="flex items-center gap-2 border-t border-white/[0.06] p-4">
         <input
           className="input flex-1"

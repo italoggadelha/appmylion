@@ -44,7 +44,8 @@ function hora(iso: string) {
 }
 
 export default function Chat() {
-  const { clientes, clientePorId, tarefasDoCliente, membroAtual } = useData()
+  const { clientes, clientePorId, tarefasDoCliente, membroAtual, membros } =
+    useData()
   const [conversas, setConversas] = useState<Conversa[]>([])
   const [selId, setSelId] = useState('')
   const [msgs, setMsgs] = useState<Mensagem[]>([])
@@ -53,6 +54,9 @@ export default function Chat() {
   const [enviando, setEnviando] = useState(false)
   const [wpp, setWpp] = useState<WppConexao>({ status: 'desconectado' })
   const [novaAberta, setNovaAberta] = useState(false)
+  const [novoTipo, setNovoTipo] = useState<'cliente' | 'grupo'>('cliente')
+  const [grupoTitulo, setGrupoTitulo] = useState('')
+  const [grupoMembros, setGrupoMembros] = useState<string[]>([])
   const fimRef = useRef<HTMLDivElement>(null)
 
   const sel = conversas.find((c) => c.id === selId)
@@ -137,6 +141,21 @@ export default function Chat() {
     setNovaAberta(false)
   }
 
+  async function novoGrupo() {
+    if (!grupoTitulo.trim()) return
+    const c = await criarConversa({
+      titulo: grupoTitulo,
+      tipo: 'grupo',
+      canal: 'interno',
+      participantes: grupoMembros,
+    })
+    await recarregarConversas()
+    setSelId(c.id)
+    setNovaAberta(false)
+    setGrupoTitulo('')
+    setGrupoMembros([])
+  }
+
   const lista = conversas.filter((c) => {
     const cli = c.clienteId ? clientePorId(c.clienteId) : undefined
     const nome = cli?.empresa ?? c.titulo ?? ''
@@ -209,16 +228,72 @@ export default function Chat() {
               <Plus size={13} /> Nova conversa
             </button>
             {novaAberta && (
-              <div className="mt-1 max-h-40 overflow-y-auto rounded-lg border border-white/[0.06] bg-ink-900">
-                {clientes.map((c) => (
-                  <button
-                    key={c.id}
-                    onClick={() => novaConversa(c.id)}
-                    className="block w-full px-2.5 py-1.5 text-left text-xs text-ink-200 hover:bg-ink-800"
-                  >
-                    {c.empresa}
-                  </button>
-                ))}
+              <div className="mt-1 rounded-lg border border-white/[0.06] bg-ink-900 p-2">
+                <div className="mb-2 flex gap-1">
+                  {(['cliente', 'grupo'] as const).map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => setNovoTipo(t)}
+                      className={`flex-1 rounded-md py-1 text-[11px] font-semibold capitalize ${
+                        novoTipo === t
+                          ? 'bg-gold-500/15 text-gold-200'
+                          : 'bg-ink-800 text-ink-400'
+                      }`}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+                {novoTipo === 'cliente' ? (
+                  <div className="max-h-40 overflow-y-auto">
+                    {clientes.map((c) => (
+                      <button
+                        key={c.id}
+                        onClick={() => novaConversa(c.id)}
+                        className="block w-full rounded px-2 py-1.5 text-left text-xs text-ink-200 hover:bg-ink-800"
+                      >
+                        {c.empresa}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    <input
+                      className="input py-1.5 text-xs"
+                      placeholder="Nome do grupo"
+                      value={grupoTitulo}
+                      onChange={(e) => setGrupoTitulo(e.target.value)}
+                    />
+                    <div className="max-h-32 space-y-0.5 overflow-y-auto">
+                      {membros.map((m) => (
+                        <label
+                          key={m.id}
+                          className="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-xs text-ink-200 hover:bg-ink-800"
+                        >
+                          <input
+                            type="checkbox"
+                            className="h-3.5 w-3.5 accent-gold-500"
+                            checked={grupoMembros.includes(m.id)}
+                            onChange={(e) =>
+                              setGrupoMembros((g) =>
+                                e.target.checked
+                                  ? [...g, m.id]
+                                  : g.filter((x) => x !== m.id),
+                              )
+                            }
+                          />
+                          {m.nome}
+                        </label>
+                      ))}
+                    </div>
+                    <button
+                      onClick={novoGrupo}
+                      className="btn-gold w-full py-1.5 text-xs"
+                    >
+                      Criar grupo
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -469,9 +544,43 @@ export default function Chat() {
                 Abrir perfil completo
               </a>
             </div>
+          ) : sel?.tipo === 'grupo' ? (
+            <div className="p-4">
+              <div className="flex flex-col items-center text-center">
+                <div className="grid h-14 w-14 place-items-center rounded-full bg-gold-500/15 text-2xl">
+                  👥
+                </div>
+                <div className="mt-2 font-display text-sm font-bold text-ink-50">
+                  {sel.titulo}
+                </div>
+                <div className="text-xs text-ink-500">Grupo interno</div>
+              </div>
+              <Bloco titulo="Participantes">
+                <div className="space-y-1.5">
+                  {(sel.participantes ?? []).map((mid) => {
+                    const mb = membros.find((x) => x.id === mid)
+                    return mb ? (
+                      <div
+                        key={mid}
+                        className="flex items-center gap-2 text-xs text-ink-200"
+                      >
+                        <Avatar nome={mb.nome} url={mb.avatarUrl} size={22} />
+                        {mb.nome}{' '}
+                        <span className="text-ink-500">· {mb.cargo}</span>
+                      </div>
+                    ) : null
+                  })}
+                  {(sel.participantes ?? []).length === 0 && (
+                    <span className="text-xs text-ink-500">
+                      Sem participantes definidos.
+                    </span>
+                  )}
+                </div>
+              </Bloco>
+            </div>
           ) : (
             <div className="grid h-full place-items-center p-4 text-center text-xs text-ink-500">
-              Selecione uma conversa de cliente para ver o contexto.
+              Selecione uma conversa para ver o contexto.
             </div>
           )}
         </div>

@@ -71,6 +71,7 @@ export interface Conversa {
   status: string
   ultimaMsg?: string
   ultimaEm: string
+  participantes?: string[]
 }
 
 export interface Mensagem {

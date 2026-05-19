@@ -12,6 +12,9 @@ const PERMISSOES = [
   { k: 'financeiro', l: 'Financeiro' },
   { k: 'ia', l: 'IA' },
   { k: 'relatorios', l: 'Relatórios' },
+  { k: 'chat', l: 'Chat' },
+  { k: 'grupos', l: 'Grupos' },
+  { k: 'chat_automacoes', l: 'Autom. chat' },
 ]
 
 export default function ConvidarMembroModal({

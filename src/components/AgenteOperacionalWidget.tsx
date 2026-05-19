@@ -42,7 +42,7 @@ export default function AgenteOperacionalWidget() {
     if (!SUPABASE_PRONTO || minhas.length === 0) return
     const lista = minhas.map((t) => `- ${t.titulo}`).join('\n')
     executarAgenteIA({
-      agente: 'Agente Operacional',
+      agente: 'Lion (Agente Operacional)',
       papel: 'organização operacional e produtividade',
       mensagem:
         `Hoje ${membroAtual.nome} tem ${minhas.length} tarefa(s) com prazo até hoje ` +
@@ -76,11 +76,11 @@ export default function AgenteOperacionalWidget() {
           >
             <div className="flex items-center gap-2 border-b border-white/[0.06] bg-gold-500/[0.06] px-4 py-2.5">
               <div className="grid h-7 w-7 place-items-center rounded-lg bg-gold-500/15 text-lg">
-                ⚡
+                🦁
               </div>
               <div className="leading-tight">
                 <div className="text-xs font-bold text-ink-50">
-                  Agente Operacional
+                  Lion · Agente Operacional
                 </div>
                 <div className="text-[10px] text-ink-500">
                   {saud}, {membroAtual.nome.split(' ')[0]}
@@ -157,8 +157,8 @@ export default function AgenteOperacionalWidget() {
             onClick={() => setAberto(true)}
             className="ml-auto flex items-center gap-2 rounded-full bg-gold-grad px-4 py-2.5 text-sm font-bold text-ink-950 shadow-gold"
           >
-            <Zap size={16} />
-            Agente Operacional
+            <span className="text-base">🦁</span>
+            Lion
             {minhas.length > 0 && (
               <span className="grid h-5 w-5 place-items-center rounded-full bg-ink-950 text-[11px] text-gold-300">
                 {minhas.length}
