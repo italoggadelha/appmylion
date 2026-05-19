@@ -21,6 +21,7 @@ import {
   Clock,
   Trophy,
   FileCode,
+  Sparkles,
 } from 'lucide-react'
 import { useData } from '@/lib/data'
 import { faseById, PRIORIDADE_COR } from '@/data/rugido'
@@ -28,11 +29,13 @@ import {
   listarAnexos,
   criarAnexo,
   excluirAnexo,
+  atualizarAnexo,
   uploadArquivo,
   criarAprovacao,
   executarAgente,
 } from '@/lib/repo'
 import { SUPABASE_PRONTO } from '@/lib/supabase'
+import { confirmar } from '@/lib/confirmar'
 import { AGENTES_IA } from '@/data/agentes'
 import { executarAgenteIA } from '@/lib/repo'
 import type { Anexo, AnexoCategoria, AnexoTipo, Tarefa } from '@/lib/types'
@@ -494,6 +497,51 @@ function SecaoAnexos({
   const [titulo, setTitulo] = useState('')
   const [conteudo, setConteudo] = useState('')
   const [salvando, setSalvando] = useState(false)
+  const [editId, setEditId] = useState('')
+  const [editTexto, setEditTexto] = useState('')
+  const [modificandoId, setModificandoId] = useState('')
+
+  async function salvarEdicao(id: string) {
+    await atualizarAnexo(id, { conteudo: editTexto })
+    setEditId('')
+    onMudou()
+  }
+
+  async function modificarComIA(a: Anexo) {
+    const feedback = window.prompt(
+      'O que você quer ajustar nesta entrega da IA?',
+    )
+    if (!feedback?.trim()) return
+    const ag =
+      a.tipo === 'html'
+        ? AGENTES_IA.find((x) => x.id === 'webdesigner')
+        : AGENTES_IA.find((x) => x.id === 'copywriter')
+    if (!ag) return
+    setModificandoId(a.id)
+    try {
+      const r = await executarAgenteIA({
+        agente: ag.nome,
+        papel: ag.papel,
+        mensagem:
+          `Conteúdo atual da entrega:\n${a.conteudo}\n\n` +
+          `Ajuste solicitado: ${feedback}\n\n` +
+          `Refaça o conteúdo completo aplicando o ajuste pedido.` +
+          (a.tipo === 'html'
+            ? ' Entregue SOMENTE o código HTML completo.'
+            : ''),
+      })
+      if (r?.resposta) {
+        await atualizarAnexo(a.id, { conteudo: r.resposta })
+        onMudou()
+      } else {
+        alert('A IA não conseguiu gerar a modificação.')
+      }
+    } catch {
+      alert('Falha ao modificar com a IA.')
+    } finally {
+      setModificandoId('')
+    }
+  }
 
   async function adicionar(file?: File) {
     if (!SUPABASE_PRONTO) return alert('Disponível com o backend conectado.')
@@ -523,8 +571,14 @@ function SecaoAnexos({
     }
   }
 
-  async function remover(id: string) {
-    await excluirAnexo(id)
+  async function remover(a: Anexo) {
+    const ok = await confirmar({
+      titulo: 'Excluir anexo?',
+      mensagem: `"${a.titulo}" será removido desta tarefa.`,
+      perigoso: true,
+    })
+    if (!ok) return
+    await excluirAnexo(a.id)
     onMudou()
   }
 
@@ -548,10 +602,8 @@ function SecaoAnexos({
       {anexos.length > 0 && (
         <div className="mt-2 space-y-1.5">
           {anexos.map((a) => (
-            <div
-              key={a.id}
-              className="flex items-center gap-2 rounded-lg bg-ink-850 px-2.5 py-1.5"
-            >
+            <div key={a.id} className="rounded-lg bg-ink-850 px-2.5 py-1.5">
+            <div className="flex items-center gap-2">
               {a.tipo === 'link' && <Link2 size={13} className="text-ink-500" />}
               {a.tipo === 'imagem' && <ImageIcon size={13} className="text-ink-500" />}
               {a.tipo === 'arquivo' && <Upload size={13} className="text-ink-500" />}
@@ -603,12 +655,61 @@ function SecaoAnexos({
                   )}
                 </a>
               )}
+              {(a.tipo === 'texto' || a.tipo === 'html') && (
+                <>
+                  <button
+                    onClick={() => {
+                      setEditId(editId === a.id ? '' : a.id)
+                      setEditTexto(a.conteudo ?? '')
+                    }}
+                    title="Editar"
+                    className="text-ink-500 hover:text-gold-300"
+                  >
+                    <Pencil size={13} />
+                  </button>
+                  <button
+                    onClick={() => modificarComIA(a)}
+                    disabled={modificandoId === a.id}
+                    title="Pedir modificação à IA"
+                    className="text-ink-500 hover:text-gold-300"
+                  >
+                    <Sparkles
+                      size={13}
+                      className={modificandoId === a.id ? 'animate-pulse' : ''}
+                    />
+                  </button>
+                </>
+              )}
               <button
-                onClick={() => remover(a.id)}
+                onClick={() => remover(a)}
                 className="text-ink-500 hover:text-red-400"
               >
                 <Trash2 size={13} />
               </button>
+            </div>
+            {editId === a.id && (
+              <div className="mt-2 space-y-2">
+                <textarea
+                  className="input min-h-[120px] py-1.5 text-xs"
+                  value={editTexto}
+                  onChange={(e) => setEditTexto(e.target.value)}
+                />
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={() => setEditId('')}
+                    className="btn-ghost py-1 text-xs"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={() => salvarEdicao(a.id)}
+                    className="btn-gold py-1 text-xs"
+                  >
+                    Salvar edição
+                  </button>
+                </div>
+              </div>
+            )}
             </div>
           ))}
         </div>

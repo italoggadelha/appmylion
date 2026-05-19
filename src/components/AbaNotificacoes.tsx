@@ -13,6 +13,7 @@ import {
   criarNotifConfig,
   excluirNotifConfig,
 } from '@/lib/chat'
+import { confirmar } from '@/lib/confirmar'
 import type { NotifConfig } from '@/lib/types'
 
 const CANAIS = [
@@ -55,7 +56,14 @@ export default function AbaNotificacoes() {
     await recarregar()
   }
 
-  async function remover(id: string) {
+  async function remover(id: string, nome: string) {
+    const ok = await confirmar({
+      titulo: 'Remover notificação?',
+      mensagem: `A notificação "${nome}" será excluída.`,
+      perigoso: true,
+      confirmar: 'Remover',
+    })
+    if (!ok) return
     await excluirNotifConfig(id)
     await recarregar()
   }
@@ -163,7 +171,7 @@ export default function AbaNotificacoes() {
             </div>
             {n.custom && (
               <button
-                onClick={() => remover(n.id)}
+                onClick={() => remover(n.id, n.nome)}
                 className="text-ink-500 hover:text-red-400"
               >
                 <Trash2 size={14} />

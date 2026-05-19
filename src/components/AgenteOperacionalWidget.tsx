@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Zap, X, Sparkles, ChevronDown } from 'lucide-react'
+import { X, Sparkles, ChevronDown } from 'lucide-react'
 import { useData } from '@/lib/data'
+import LionIcon from './LionIcon'
 import { executarAgenteIA } from '@/lib/repo'
 import { SUPABASE_PRONTO } from '@/lib/supabase'
 
@@ -75,9 +76,7 @@ export default function AgenteOperacionalWidget() {
             className="panel overflow-hidden shadow-gold"
           >
             <div className="flex items-center gap-2 border-b border-white/[0.06] bg-gold-500/[0.06] px-4 py-2.5">
-              <div className="grid h-7 w-7 place-items-center rounded-lg bg-gold-500/15 text-lg">
-                🦁
-              </div>
+              <LionIcon size={30} />
               <div className="leading-tight">
                 <div className="text-xs font-bold text-ink-50">
                   Lion · Agente Operacional
@@ -157,7 +156,7 @@ export default function AgenteOperacionalWidget() {
             onClick={() => setAberto(true)}
             className="ml-auto flex items-center gap-2 rounded-full bg-gold-grad px-4 py-2.5 text-sm font-bold text-ink-950 shadow-gold"
           >
-            <span className="text-base">🦁</span>
+            <LionIcon size={20} />
             Lion
             {minhas.length > 0 && (
               <span className="grid h-5 w-5 place-items-center rounded-full bg-ink-950 text-[11px] text-gold-300">

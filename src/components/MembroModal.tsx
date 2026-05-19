@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Trash2 } from 'lucide-react'
 import { useData } from '@/lib/data'
+import { confirmar } from '@/lib/confirmar'
 import { atualizarMembro, excluirMembro, uploadArquivo } from '@/lib/repo'
 import { SUPABASE_PRONTO } from '@/lib/supabase'
 import type { Membro } from '@/lib/types'
@@ -15,7 +16,7 @@ export default function MembroModal({
   membro: Membro | null
   onFechar: () => void
 }) {
-  const { recarregar, perfis } = useData()
+  const { recarregar, perfis, tarefas } = useData()
   const [f, setF] = useState({ nome: '', cargo: '', perfil: 'operacional' })
   const [foto, setFoto] = useState('')
   const [salvando, setSalvando] = useState(false)
@@ -57,8 +58,20 @@ export default function MembroModal({
 
   async function remover() {
     if (!membro) return
-    if (!confirm(`Remover ${membro.nome} da equipe? O acesso será revogado.`))
-      return
+    const m = membro
+    const minhas = tarefas.filter((t) => t.responsavelId === m.id)
+    const ativas = minhas.filter((t) => t.status !== 'concluida').length
+    const deps: string[] = []
+    if (ativas)
+      deps.push(`${ativas} tarefa(s) ativa(s) ficarão sem responsável`)
+    const ok = await confirmar({
+      titulo: 'Remover membro?',
+      mensagem: `${m.nome} perderá o acesso ao sistema.`,
+      dependencias: deps,
+      perigoso: true,
+      confirmar: 'Remover',
+    })
+    if (!ok) return
     setSalvando(true)
     try {
       await excluirMembro(membro.id)

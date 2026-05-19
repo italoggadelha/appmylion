@@ -24,6 +24,7 @@ import {
   excluirAgenteExterno,
 } from '@/lib/repo'
 import type { PerfilAcesso, AgenteExterno } from '@/lib/types'
+import { confirmar } from '@/lib/confirmar'
 import { FASES_RUGIDO, FUNCOES, type FaseId } from '@/data/rugido'
 import type { StatusTarefa, TarefaTemplate } from '@/lib/types'
 import { PageHeader } from '@/components/ui'
@@ -99,8 +100,14 @@ function AbaAgentes() {
     setNovo({ nome: '', descricao: '', webhookUrl: '' })
     await recarregar()
   }
-  async function remover(id: string) {
-    if (!confirm('Remover este agente?')) return
+  async function remover(id: string, nome: string) {
+    const ok = await confirmar({
+      titulo: 'Remover agente conectado?',
+      mensagem: `O agente "${nome}" será desconectado do sistema.`,
+      perigoso: true,
+      confirmar: 'Remover',
+    })
+    if (!ok) return
     await excluirAgenteExterno(id)
     await recarregar()
   }
@@ -141,7 +148,7 @@ function AbaAgentes() {
               </div>
             </div>
             <button
-              onClick={() => remover(ag.id)}
+              onClick={() => remover(ag.id, ag.nome)}
               className="grid h-8 w-8 place-items-center rounded-lg text-ink-500 hover:text-red-400"
             >
               <Trash2 size={14} />
@@ -270,7 +277,13 @@ function LinhaPerfil({
     onMudou()
   }
   async function remover() {
-    if (!confirm(`Remover o perfil "${perfil.nome}"?`)) return
+    const ok = await confirmar({
+      titulo: 'Remover perfil de acesso?',
+      mensagem: `O perfil "${perfil.nome}" será excluído.`,
+      perigoso: true,
+      confirmar: 'Remover',
+    })
+    if (!ok) return
     await excluirPerfil(perfil.id)
     onMudou()
   }
@@ -386,7 +399,13 @@ function LinhaStatus({
     onMudou()
   }
   async function remover() {
-    if (!confirm(`Remover o status "${status.nome}"?`)) return
+    const ok = await confirmar({
+      titulo: 'Remover status?',
+      mensagem: `"${status.nome}" deixará de aparecer. Tarefas que usam este status mantêm o valor até serem editadas.`,
+      perigoso: true,
+      confirmar: 'Remover',
+    })
+    if (!ok) return
     await excluirStatus(status.id)
     onMudou()
   }
@@ -435,6 +454,12 @@ function TemplateCard({ tpl }: { tpl: TarefaTemplate }) {
 
   async function remover(e: React.MouseEvent) {
     e.stopPropagation()
+    const ok = await confirmar({
+      titulo: 'Excluir tarefa padrão?',
+      mensagem: `"${tpl.titulo}" não será mais gerada em novos clientes.`,
+      perigoso: true,
+    })
+    if (!ok) return
     await excluirTemplate(tpl.id)
     await recarregar()
   }

@@ -7,6 +7,7 @@ import {
   uploadArquivo,
 } from '@/lib/repo'
 import { SUPABASE_PRONTO } from '@/lib/supabase'
+import { confirmar } from '@/lib/confirmar'
 import type { Documento } from '@/lib/types'
 
 export default function DocumentosCliente({
@@ -60,8 +61,14 @@ export default function DocumentosCliente({
     }
   }
 
-  async function remover(id: string) {
-    await excluirDocumento(id)
+  async function remover(d: Documento) {
+    const ok = await confirmar({
+      titulo: 'Excluir documento?',
+      mensagem: `"${d.nome}" será removido do cliente.`,
+      perigoso: true,
+    })
+    if (!ok) return
+    await excluirDocumento(d.id)
     await recarregar()
   }
 
@@ -119,7 +126,7 @@ export default function DocumentosCliente({
               )}
             </div>
             <button
-              onClick={() => remover(d.id)}
+              onClick={() => remover(d)}
               className="text-ink-500 hover:text-red-400"
             >
               <Trash2 size={13} />

@@ -583,6 +583,15 @@ export async function criarAnexo(a: Omit<Anexo, 'id' | 'criadoEm'>) {
   if (error) throw error
 }
 
+export async function atualizarAnexo(
+  id: string,
+  campos: { titulo?: string; conteudo?: string },
+) {
+  if (!SUPABASE_PRONTO) return
+  const { error } = await supabase.from('anexos').update(campos).eq('id', id)
+  if (error) throw error
+}
+
 export async function excluirAnexo(id: string) {
   if (!SUPABASE_PRONTO) return
   const { error } = await supabase.from('anexos').delete().eq('id', id)

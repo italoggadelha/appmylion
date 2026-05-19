@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Trash2 } from 'lucide-react'
 import { useData } from '@/lib/data'
+import { confirmar } from '@/lib/confirmar'
 import {
   FASES_RUGIDO,
   FUNCOES,
@@ -125,7 +126,17 @@ export default function TarefaModal({
 
   async function excluir() {
     if (!tarefa) return
-    if (!confirm('Excluir esta tarefa?')) return
+    const deps: string[] = []
+    if (tarefa.subtarefas.length)
+      deps.push(`${tarefa.subtarefas.length} subtarefa(s)`)
+    if (tarefa.anexos) deps.push(`${tarefa.anexos} anexo(s)`)
+    const ok = await confirmar({
+      titulo: 'Excluir tarefa?',
+      mensagem: `"${tarefa.titulo}" será removida permanentemente.`,
+      dependencias: deps,
+      perigoso: true,
+    })
+    if (!ok) return
     setSalvando(true)
     try {
       await removerTarefa(tarefa.id)

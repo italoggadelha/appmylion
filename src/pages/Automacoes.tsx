@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Zap, ArrowRight, Plus, Trash2, X } from 'lucide-react'
 import { useData } from '@/lib/data'
 import { criarAutomacao, excluirAutomacao } from '@/lib/repo'
+import { confirmar } from '@/lib/confirmar'
 import { SUPABASE_PRONTO } from '@/lib/supabase'
 import { PageHeader, Badge } from '@/components/ui'
 
@@ -53,8 +54,14 @@ export default function Automacoes() {
     }
   }
 
-  async function remover(id: string) {
-    if (!confirm('Remover esta automação?')) return
+  async function remover(id: string, nome: string) {
+    const ok = await confirmar({
+      titulo: 'Remover automação?',
+      mensagem: `A automação "${nome}" será excluída.`,
+      perigoso: true,
+      confirmar: 'Remover',
+    })
+    if (!ok) return
     await excluirAutomacao(id)
     await recarregar()
   }
@@ -200,7 +207,7 @@ export default function Automacoes() {
                 </span>
                 {a.custom && (
                   <button
-                    onClick={() => remover(a.id)}
+                    onClick={() => remover(a.id, a.nome)}
                     className="text-ink-600 hover:text-red-400"
                   >
                     <Trash2 size={13} />

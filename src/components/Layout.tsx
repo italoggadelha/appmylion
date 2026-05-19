@@ -3,6 +3,7 @@ import Sidebar from './Sidebar'
 import Topbar from './Topbar'
 import TarefaDetalhe from './TarefaDetalhe'
 import AgenteOperacionalWidget from './AgenteOperacionalWidget'
+import { ConfirmHost } from '@/lib/confirmar'
 
 export default function Layout() {
   return (
@@ -20,6 +21,8 @@ export default function Layout() {
       <TarefaDetalhe />
       {/* Agente operacional — canto inferior */}
       <AgenteOperacionalWidget />
+      {/* Confirmação global de exclusão */}
+      <ConfirmHost />
     </div>
   )
 }
