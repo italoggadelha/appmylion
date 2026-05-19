@@ -16,7 +16,7 @@ import {
 const NAV = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/clientes', label: 'Clientes', icon: Users },
-  { to: '/kanban', label: 'Kanban', icon: KanbanSquare },
+  { to: '/tarefas', label: 'Tarefas', icon: KanbanSquare },
   { to: '/aprovacoes', label: 'Aprovações', icon: CheckCircle2 },
   { to: '/agentes', label: 'Agentes de IA', icon: Bot },
   { to: '/formularios', label: 'Formulários', icon: FileQuestion },

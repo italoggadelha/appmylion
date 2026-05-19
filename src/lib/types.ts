@@ -58,6 +58,17 @@ export interface Tarefa {
   iniciadaEm?: string | null
   pontos: number
   funcao?: string | null
+  avulsa?: boolean
+  aprovacao?: string
+}
+
+export interface Documento {
+  id: string
+  clienteId: string
+  nome: string
+  tipo: string
+  conteudo?: string
+  criadoEm: string
 }
 
 export type AprovacaoStatus = 'pendente' | 'aprovado' | 'reprovado' | 'ajustes'
@@ -87,6 +98,7 @@ export interface TarefaTemplate {
   titulo: string
   ordem: number
   funcao?: string | null
+  aprovacao?: string
 }
 
 export type AnexoCategoria = 'aprovacao' | 'ideia' | 'apoio'

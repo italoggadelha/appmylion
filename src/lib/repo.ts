@@ -92,6 +92,8 @@ const mapTarefa = (r: any, nomes: Map<string, string>): Tarefa => ({
   iniciadaEm: r.iniciada_em ?? null,
   pontos: r.pontos ?? 0,
   funcao: r.funcao ?? null,
+  avulsa: !!r.avulsa,
+  aprovacao: r.aprovacao ?? 'nenhum',
 })
 
 const mapAprovacao = (r: any, nomes: Map<string, string>): Aprovacao => ({
@@ -300,7 +302,7 @@ export async function criarTarefa(t: Partial<Tarefa>) {
   const { data, error } = await supabase
     .from('tarefas')
     .insert({
-      cliente_id: t.clienteId,
+      cliente_id: t.clienteId || null,
       fase: t.fase,
       titulo: t.titulo,
       descricao: t.descricao || null,
@@ -310,6 +312,8 @@ export async function criarTarefa(t: Partial<Tarefa>) {
       prazo: t.prazo || null,
       precisa_aprovacao: !!t.precisaAprovacao,
       funcao: t.funcao ?? null,
+      avulsa: t.avulsa ?? false,
+      aprovacao: t.aprovacao ?? 'nenhum',
     })
     .select()
     .single()
@@ -332,6 +336,7 @@ export async function atualizarTarefa(id: string, t: Partial<Tarefa>) {
   if (t.prazo !== undefined) campos.prazo = t.prazo || null
   if (t.precisaAprovacao !== undefined) campos.precisa_aprovacao = t.precisaAprovacao
   if (t.funcao !== undefined) campos.funcao = t.funcao || null
+  if (t.aprovacao !== undefined) campos.aprovacao = t.aprovacao
   const { error } = await supabase.from('tarefas').update(campos).eq('id', id)
   if (error) throw error
 }
@@ -402,6 +407,47 @@ export async function criarAprovacao(a: {
   return data as { token: string }
 }
 
+// ── Documentos do cliente ───────────────────────────────────────────
+export async function listarDocumentos(clienteId: string) {
+  if (!SUPABASE_PRONTO) return []
+  const { data, error } = await supabase
+    .from('documentos')
+    .select('*')
+    .eq('cliente_id', clienteId)
+    .order('criado_em', { ascending: false })
+  if (error) throw error
+  return (data ?? []).map((r: any) => ({
+    id: r.id,
+    clienteId: r.cliente_id,
+    nome: r.nome,
+    tipo: r.tipo,
+    conteudo: r.conteudo ?? undefined,
+    criadoEm: r.criado_em,
+  }))
+}
+
+export async function criarDocumento(d: {
+  clienteId: string
+  nome: string
+  tipo: string
+  conteudo?: string
+}) {
+  if (!SUPABASE_PRONTO) throw new Error('Supabase não configurado')
+  const { error } = await supabase.from('documentos').insert({
+    cliente_id: d.clienteId,
+    nome: d.nome,
+    tipo: d.tipo,
+    conteudo: d.conteudo ?? null,
+  })
+  if (error) throw error
+}
+
+export async function excluirDocumento(id: string) {
+  if (!SUPABASE_PRONTO) return
+  const { error } = await supabase.from('documentos').delete().eq('id', id)
+  if (error) throw error
+}
+
 // ── Membros da equipe ───────────────────────────────────────────────
 export async function atualizarMembro(
   id: string,
@@ -427,7 +473,7 @@ export async function gerarTarefasFase(clienteId: string, fase: FaseId) {
   if (!SUPABASE_PRONTO) return 0
   const { data: tpls } = await supabase
     .from('tarefa_templates')
-    .select('id, titulo, ordem, funcao, subtarefa_templates(titulo, ordem)')
+    .select('id, titulo, ordem, funcao, aprovacao, subtarefa_templates(titulo, ordem)')
     .eq('fase', fase)
     .order('ordem')
   const lista = tpls ?? []
@@ -443,6 +489,7 @@ export async function gerarTarefasFase(clienteId: string, fase: FaseId) {
         prioridade: 'media',
         ordem: tp.ordem,
         funcao: tp.funcao ?? null,
+        aprovacao: tp.aprovacao ?? 'nenhum',
       })
       .select('id')
       .single()
@@ -578,7 +625,13 @@ export async function salvarTemplate(t: Partial<TarefaTemplate> & { id?: string 
   if (t.id) {
     const { error } = await supabase
       .from('tarefa_templates')
-      .update({ titulo: t.titulo, fase: t.fase, ordem: t.ordem, funcao: t.funcao ?? null })
+      .update({
+        titulo: t.titulo,
+        fase: t.fase,
+        ordem: t.ordem,
+        funcao: t.funcao ?? null,
+        aprovacao: t.aprovacao ?? 'nenhum',
+      })
       .eq('id', t.id)
     if (error) throw error
   } else {
@@ -589,6 +642,7 @@ export async function salvarTemplate(t: Partial<TarefaTemplate> & { id?: string 
         fase: t.fase,
         ordem: t.ordem ?? 99,
         funcao: t.funcao ?? null,
+        aprovacao: t.aprovacao ?? 'nenhum',
       })
     if (error) throw error
   }

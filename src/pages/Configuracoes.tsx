@@ -425,7 +425,11 @@ function TemplateCard({ tpl }: { tpl: TarefaTemplate }) {
   }
 
   async function mudarFuncao(funcao: string) {
-    await salvarTemplate({ id: tpl.id, titulo: tpl.titulo, fase: tpl.fase, ordem: tpl.ordem, funcao })
+    await salvarTemplate({ id: tpl.id, titulo: tpl.titulo, fase: tpl.fase, ordem: tpl.ordem, funcao, aprovacao: tpl.aprovacao })
+    await recarregar()
+  }
+  async function mudarAprovacao(aprovacao: string) {
+    await salvarTemplate({ id: tpl.id, titulo: tpl.titulo, fase: tpl.fase, ordem: tpl.ordem, funcao: tpl.funcao, aprovacao })
     await recarregar()
   }
 
@@ -466,6 +470,16 @@ function TemplateCard({ tpl }: { tpl: TarefaTemplate }) {
             {f.nome}
           </option>
         ))}
+      </select>
+      <select
+        value={tpl.aprovacao ?? 'nenhum'}
+        onChange={(e) => mudarAprovacao(e.target.value)}
+        className="mt-1 w-full rounded-md border border-white/[0.06] bg-ink-900 px-1.5 py-1 text-[10px] font-semibold text-ink-300 outline-none"
+      >
+        <option value="nenhum">Sem aprovação</option>
+        <option value="lider">Aprova: líder</option>
+        <option value="cliente">Aprova: cliente</option>
+        <option value="ambos">Aprova: líder + cliente</option>
       </select>
     </div>
   )

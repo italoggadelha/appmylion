@@ -63,7 +63,8 @@ export default function App() {
           <Route index element={<Dashboard />} />
           <Route path="clientes" element={<Clientes />} />
           <Route path="clientes/:id" element={<ClienteDetalhe />} />
-          <Route path="kanban" element={<Kanban />} />
+          <Route path="tarefas" element={<Kanban />} />
+          <Route path="kanban" element={<Navigate to="/tarefas" replace />} />
           <Route path="aprovacoes" element={<Aprovacoes />} />
           <Route path="agentes" element={<AgentesIA />} />
           <Route path="formularios" element={<Formularios />} />

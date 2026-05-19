@@ -18,6 +18,7 @@ import { useData } from '@/lib/data'
 import { criarAprovacao, gerarPlanoConteudo } from '@/lib/repo'
 import { SUPABASE_PRONTO } from '@/lib/supabase'
 import TarefaModal from '@/components/TarefaModal'
+import DocumentosCliente from '@/components/DocumentosCliente'
 import {
   FASES_RUGIDO,
   faseById,
@@ -266,6 +267,11 @@ export default function ClienteDetalhe() {
             )
           })}
         </div>
+      </div>
+
+      {/* Documentos oficiais */}
+      <div className="mt-4">
+        <DocumentosCliente clienteId={cliente.id} />
       </div>
 
       {/* Detalhe da fase selecionada */}

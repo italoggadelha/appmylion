@@ -23,18 +23,27 @@ const STATUSES: TarefaStatus[] = [
 ]
 const PRIOS: Prioridade[] = ['baixa', 'media', 'alta', 'critica']
 
+const APROVACOES = [
+  { v: 'nenhum', l: 'Não precisa de aprovação' },
+  { v: 'lider', l: 'Aprovação do líder' },
+  { v: 'cliente', l: 'Aprovação do cliente' },
+  { v: 'ambos', l: 'Líder e depois cliente' },
+]
+
 export default function TarefaModal({
   aberto,
   onFechar,
   clienteId,
   faseInicial,
   tarefa,
+  avulsa,
 }: {
   aberto: boolean
   onFechar: () => void
   clienteId: string
   faseInicial?: FaseId
   tarefa?: Tarefa
+  avulsa?: boolean
 }) {
   const { membros, salvarTarefa, removerTarefa } = useData()
   const [salvando, setSalvando] = useState(false)
@@ -51,6 +60,7 @@ export default function TarefaModal({
     funcao: '',
     prazo: '',
     precisaAprovacao: false,
+    aprovacao: 'nenhum',
   })
 
   useEffect(() => {
@@ -66,6 +76,7 @@ export default function TarefaModal({
         funcao: tarefa.funcao ?? '',
         prazo: tarefa.prazo ? tarefa.prazo.slice(0, 10) : '',
         precisaAprovacao: tarefa.precisaAprovacao,
+        aprovacao: tarefa.aprovacao ?? 'nenhum',
       })
     } else {
       setF((p) => ({
@@ -79,6 +90,7 @@ export default function TarefaModal({
         funcao: '',
         prazo: '',
         precisaAprovacao: false,
+        aprovacao: 'nenhum',
       }))
     }
     setErro('')
@@ -97,7 +109,12 @@ export default function TarefaModal({
     setSalvando(true)
     setErro('')
     try {
-      await salvarTarefa({ id: tarefa?.id, clienteId, ...f })
+      await salvarTarefa({
+        id: tarefa?.id,
+        clienteId,
+        avulsa: avulsa ?? tarefa?.avulsa,
+        ...f,
+      })
       onFechar()
     } catch (e: any) {
       setErro(e?.message ?? 'Falha ao salvar.')
@@ -271,15 +288,22 @@ export default function TarefaModal({
                   </select>
                 </div>
               </div>
-              <label className="flex cursor-pointer items-center gap-2 text-sm text-ink-200">
-                <input
-                  type="checkbox"
-                  checked={f.precisaAprovacao}
-                  onChange={(e) => set('precisaAprovacao', e.target.checked)}
-                  className="h-4 w-4 accent-gold-500"
-                />
-                Requer aprovação do cliente
-              </label>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-ink-300">
+                  Quando concluída, exige aprovação de
+                </label>
+                <select
+                  className="input"
+                  value={f.aprovacao}
+                  onChange={(e) => set('aprovacao', e.target.value)}
+                >
+                  {APROVACOES.map((a) => (
+                    <option key={a.v} value={a.v}>
+                      {a.l}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {erro && (

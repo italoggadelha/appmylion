@@ -8,21 +8,34 @@ import {
   useSensors,
   type DragEndEvent,
 } from '@dnd-kit/core'
-import { MessageSquare, Paperclip, LayoutGrid, User, Users } from 'lucide-react'
+import {
+  MessageSquare,
+  Paperclip,
+  LayoutGrid,
+  User,
+  Users,
+  List,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+} from 'lucide-react'
 import { useData } from '@/lib/data'
 import {
   FASES_RUGIDO,
-  STATUS_LABEL,
-  STATUS_COR,
+  faseById,
   PRIORIDADE_COR,
   type FaseId,
 } from '@/data/rugido'
 import type { Tarefa } from '@/lib/types'
+import { dataCurta } from '@/lib/format'
 import { Avatar, Badge, PageHeader } from '@/components/ui'
+import TarefaModal from '@/components/TarefaModal'
 
 type Modo = 'geral' | 'cliente' | 'membro'
+type Vista = 'kanban' | 'lista' | 'calendario'
 
-// ── Card de tarefa (arrastável entre fases) ─────────────────────────
+// ── Card do Kanban ──────────────────────────────────────────────────
 function Card({ tarefa }: { tarefa: Tarefa }) {
   const { clientePorId, abrirTarefa, statusInfo } = useData()
   const si = statusInfo(tarefa.status)
@@ -36,7 +49,6 @@ function Card({ tarefa }: { tarefa: Tarefa }) {
       ? { transform: `translate3d(${transform.x}px,${transform.y}px,0)` }
       : {}),
   }
-
   return (
     <div
       ref={setNodeRef}
@@ -50,12 +62,11 @@ function Card({ tarefa }: { tarefa: Tarefa }) {
     >
       <div className="flex items-center gap-1.5">
         <span className="truncate text-[10px] font-semibold uppercase tracking-wide text-ink-500">
-          {cliente?.empresa ?? '—'}
+          {tarefa.avulsa ? 'Avulsa' : (cliente?.empresa ?? '—')}
         </span>
         <span
           className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full"
           style={{ backgroundColor: PRIORIDADE_COR[tarefa.prioridade] }}
-          title={`Prioridade ${tarefa.prioridade}`}
         />
       </div>
       <div className="mt-1.5 text-sm font-medium leading-snug text-ink-100">
@@ -96,7 +107,6 @@ function Card({ tarefa }: { tarefa: Tarefa }) {
   )
 }
 
-// ── Coluna = uma fase do RUGIDO ─────────────────────────────────────
 function ColunaFase({
   fase,
   tarefas,
@@ -106,7 +116,6 @@ function ColunaFase({
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: fase.id })
   const concluidas = tarefas.filter((t) => t.status === 'concluida').length
-
   return (
     <div className="flex w-72 shrink-0 flex-col">
       <div
@@ -153,16 +162,174 @@ function ColunaFase({
   )
 }
 
-export default function Kanban() {
+// ── Vista Lista ─────────────────────────────────────────────────────
+function VistaLista({ tarefas }: { tarefas: Tarefa[] }) {
+  const { abrirTarefa, statusInfo, clientePorId } = useData()
+  if (!tarefas.length)
+    return (
+      <div className="panel grid place-items-center py-12 text-sm text-ink-500">
+        Nenhuma tarefa nesta visão.
+      </div>
+    )
+  return (
+    <div className="panel overflow-hidden">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-[10px] uppercase tracking-wide text-ink-500">
+            <th className="px-4 py-2.5 text-left">Tarefa</th>
+            <th className="px-3 py-2.5 text-left">Cliente</th>
+            <th className="px-3 py-2.5 text-left">Fase</th>
+            <th className="px-3 py-2.5 text-left">Status</th>
+            <th className="px-3 py-2.5 text-left">Responsável</th>
+            <th className="px-3 py-2.5 text-left">Prazo</th>
+          </tr>
+        </thead>
+        <tbody>
+          {tarefas.map((t) => {
+            const si = statusInfo(t.status)
+            const fase = faseById(t.fase)
+            return (
+              <tr
+                key={t.id}
+                onClick={() => abrirTarefa(t.id)}
+                className="cursor-pointer border-t border-white/[0.04] hover:bg-ink-800/40"
+              >
+                <td className="px-4 py-2.5 font-medium text-ink-100">
+                  {t.titulo}
+                </td>
+                <td className="px-3 py-2.5 text-ink-400">
+                  {t.avulsa ? 'Avulsa' : (clientePorId(t.clienteId)?.empresa ?? '—')}
+                </td>
+                <td className="px-3 py-2.5">
+                  <span style={{ color: fase.cor }}>{fase.nome}</span>
+                </td>
+                <td className="px-3 py-2.5">
+                  <span
+                    className="rounded-md px-2 py-0.5 text-[11px] font-semibold"
+                    style={{ backgroundColor: `${si.cor}1f`, color: si.cor }}
+                  >
+                    {si.nome}
+                  </span>
+                </td>
+                <td className="px-3 py-2.5 text-ink-300">
+                  {t.responsavelNome ?? '—'}
+                </td>
+                <td className="px-3 py-2.5 text-ink-400">
+                  {t.prazo ? dataCurta(t.prazo) : '—'}
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+// ── Vista Calendário (mês) ──────────────────────────────────────────
+function VistaCalendario({ tarefas }: { tarefas: Tarefa[] }) {
+  const { abrirTarefa, statusInfo } = useData()
+  const [ref, setRef] = useState(() => {
+    const d = new Date()
+    return new Date(d.getFullYear(), d.getMonth(), 1)
+  })
+  const ano = ref.getFullYear()
+  const mes = ref.getMonth()
+  const primeiroDiaSemana = new Date(ano, mes, 1).getDay()
+  const diasNoMes = new Date(ano, mes + 1, 0).getDate()
+  const celulas: (number | null)[] = [
+    ...Array(primeiroDiaSemana).fill(null),
+    ...Array.from({ length: diasNoMes }, (_, i) => i + 1),
+  ]
+  const porDia = (dia: number) =>
+    tarefas.filter((t) => {
+      if (!t.prazo) return false
+      const p = new Date(t.prazo)
+      return (
+        p.getFullYear() === ano && p.getMonth() === mes && p.getDate() === dia
+      )
+    })
+
+  return (
+    <div className="panel p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <button
+          onClick={() => setRef(new Date(ano, mes - 1, 1))}
+          className="grid h-8 w-8 place-items-center rounded-lg hover:bg-ink-700"
+        >
+          <ChevronLeft size={16} />
+        </button>
+        <span className="font-display text-sm font-bold capitalize text-ink-100">
+          {ref.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+        </span>
+        <button
+          onClick={() => setRef(new Date(ano, mes + 1, 1))}
+          className="grid h-8 w-8 place-items-center rounded-lg hover:bg-ink-700"
+        >
+          <ChevronRight size={16} />
+        </button>
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((d) => (
+          <div
+            key={d}
+            className="py-1 text-center text-[10px] font-bold uppercase text-ink-500"
+          >
+            {d}
+          </div>
+        ))}
+        {celulas.map((dia, i) => (
+          <div
+            key={i}
+            className={`min-h-[88px] rounded-lg border border-white/[0.04] p-1 ${
+              dia ? 'bg-ink-900/50' : ''
+            }`}
+          >
+            {dia && (
+              <>
+                <div className="mb-1 text-[10px] font-semibold text-ink-500">
+                  {dia}
+                </div>
+                <div className="space-y-1">
+                  {porDia(dia)
+                    .slice(0, 4)
+                    .map((t) => {
+                      const si = statusInfo(t.status)
+                      return (
+                        <button
+                          key={t.id}
+                          onClick={() => abrirTarefa(t.id)}
+                          className="block w-full truncate rounded px-1.5 py-0.5 text-left text-[10px] font-medium"
+                          style={{
+                            backgroundColor: `${si.cor}22`,
+                            color: si.cor,
+                          }}
+                        >
+                          {t.titulo}
+                        </button>
+                      )
+                    })}
+                </div>
+              </>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+export default function Tarefas() {
   const { tarefas, clientes, membros, moverTarefaFase } = useData()
+  const [vista, setVista] = useState<Vista>('kanban')
   const [modo, setModo] = useState<Modo>('geral')
   const [alvoCliente, setAlvoCliente] = useState('')
   const [alvoMembro, setAlvoMembro] = useState('')
+  const [avulsaAberta, setAvulsaAberta] = useState(false)
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   )
 
-  // alvos padrão
   const cliente = alvoCliente || clientes[0]?.id || ''
   const membro = alvoMembro || membros[0]?.id || ''
 
@@ -179,6 +346,11 @@ export default function Kanban() {
     if (t && t.fase !== novaFase) moverTarefaFase(t.id, novaFase)
   }
 
+  const VISTAS: { id: Vista; label: string; icon: typeof List }[] = [
+    { id: 'kanban', label: 'Kanban', icon: LayoutGrid },
+    { id: 'lista', label: 'Lista', icon: List },
+    { id: 'calendario', label: 'Calendário', icon: CalendarDays },
+  ]
   const MODOS: { id: Modo; label: string; icon: typeof Users }[] = [
     { id: 'geral', label: 'Geral', icon: LayoutGrid },
     { id: 'cliente', label: 'Por cliente', icon: User },
@@ -188,12 +360,41 @@ export default function Kanban() {
   return (
     <div>
       <PageHeader
-        titulo="Kanban · Pipeline RUGIDO"
-        subtitulo="Arraste tarefas entre as 6 fases do método"
+        titulo="Tarefas"
+        subtitulo="Toda a operação — Kanban, lista ou calendário"
+        acao={
+          <button className="btn-gold" onClick={() => setAvulsaAberta(true)}>
+            <Plus size={15} /> Tarefa avulsa
+          </button>
+        }
       />
 
-      {/* Seletor de visão */}
+      <TarefaModal
+        aberto={avulsaAberta}
+        onFechar={() => setAvulsaAberta(false)}
+        clienteId=""
+        avulsa
+      />
+
+      {/* Vista + escopo */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="flex rounded-xl border border-white/[0.07] bg-ink-850 p-1">
+          {VISTAS.map((v) => (
+            <button
+              key={v.id}
+              onClick={() => setVista(v.id)}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+                vista === v.id
+                  ? 'bg-gold-grad text-ink-950'
+                  : 'text-ink-400 hover:text-ink-100'
+              }`}
+            >
+              <v.icon size={14} />
+              {v.label}
+            </button>
+          ))}
+        </div>
+
         <div className="flex rounded-xl border border-white/[0.07] bg-ink-850 p-1">
           {MODOS.map((mo) => (
             <button
@@ -201,7 +402,7 @@ export default function Kanban() {
               onClick={() => setModo(mo.id)}
               className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
                 modo === mo.id
-                  ? 'bg-gold-grad text-ink-950'
+                  ? 'bg-ink-700 text-ink-50'
                   : 'text-ink-400 hover:text-ink-100'
               }`}
             >
@@ -237,24 +438,26 @@ export default function Kanban() {
             ))}
           </select>
         )}
-
         <span className="ml-auto text-xs text-ink-500">
-          {visiveis.length} tarefa(s) na visão
+          {visiveis.length} tarefa(s)
         </span>
       </div>
 
-      {/* Pipeline de fases */}
-      <DndContext sensors={sensors} onDragEnd={onDragEnd}>
-        <div className="flex gap-3 overflow-x-auto pb-4">
-          {FASES_RUGIDO.map((fase) => (
-            <ColunaFase
-              key={fase.id}
-              fase={fase}
-              tarefas={visiveis.filter((t) => t.fase === fase.id)}
-            />
-          ))}
-        </div>
-      </DndContext>
+      {vista === 'kanban' && (
+        <DndContext sensors={sensors} onDragEnd={onDragEnd}>
+          <div className="flex gap-3 overflow-x-auto pb-4">
+            {FASES_RUGIDO.map((fase) => (
+              <ColunaFase
+                key={fase.id}
+                fase={fase}
+                tarefas={visiveis.filter((t) => t.fase === fase.id)}
+              />
+            ))}
+          </div>
+        </DndContext>
+      )}
+      {vista === 'lista' && <VistaLista tarefas={visiveis} />}
+      {vista === 'calendario' && <VistaCalendario tarefas={visiveis} />}
     </div>
   )
 }
