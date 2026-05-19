@@ -11,6 +11,7 @@ import {
   UserCog,
   Globe,
   Settings,
+  FileQuestion,
 } from 'lucide-react'
 
 const NAV = [
@@ -19,6 +20,7 @@ const NAV = [
   { to: '/kanban', label: 'Kanban', icon: KanbanSquare },
   { to: '/aprovacoes', label: 'Aprovações', icon: CheckCircle2 },
   { to: '/agentes', label: 'Agentes de IA', icon: Bot },
+  { to: '/formularios', label: 'Formulários', icon: FileQuestion },
   { to: '/automacoes', label: 'Automações', icon: Workflow },
   { to: '/relatorios', label: 'Relatórios', icon: BarChart3 },
 ]

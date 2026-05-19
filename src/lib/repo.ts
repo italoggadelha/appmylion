@@ -497,6 +497,110 @@ export async function salvarRelatorio(
   }
 }
 
+// ── Formulários (raio-x / descoberta) ───────────────────────────────
+export interface CampoForm {
+  id: string
+  label: string
+  tipo: string
+}
+export interface FormularioModelo {
+  id: string
+  nome: string
+  descricao?: string
+  campos: CampoForm[]
+}
+export interface RespostaForm {
+  id: string
+  formularioId: string
+  formularioNome: string
+  clienteId: string
+  token: string
+  status: string
+  respostas: Record<string, string>
+  plano?: string
+  planoConfirmado: boolean
+  respondidoEm?: string
+  criadoEm: string
+}
+
+export async function listarFormularios(): Promise<FormularioModelo[]> {
+  if (!SUPABASE_PRONTO) return []
+  const { data, error } = await supabase
+    .from('formularios')
+    .select('*')
+    .order('criado_em')
+  if (error) throw error
+  return (data ?? []).map((r: any) => ({
+    id: r.id,
+    nome: r.nome,
+    descricao: r.descricao ?? undefined,
+    campos: r.campos ?? [],
+  }))
+}
+
+export async function listarRespostas(): Promise<RespostaForm[]> {
+  if (!SUPABASE_PRONTO) return []
+  const { data, error } = await supabase
+    .from('formulario_respostas')
+    .select('*, formularios(nome)')
+    .order('criado_em', { ascending: false })
+  if (error) throw error
+  return (data ?? []).map((r: any) => ({
+    id: r.id,
+    formularioId: r.formulario_id,
+    formularioNome: r.formularios?.nome ?? 'Formulário',
+    clienteId: r.cliente_id,
+    token: r.token,
+    status: r.status,
+    respostas: r.respostas ?? {},
+    plano: r.plano ?? undefined,
+    planoConfirmado: r.plano_confirmado,
+    respondidoEm: r.respondido_em ?? undefined,
+    criadoEm: r.criado_em,
+  }))
+}
+
+export async function criarEnvioFormulario(
+  formularioId: string,
+  clienteId: string,
+): Promise<{ token: string }> {
+  if (!SUPABASE_PRONTO) throw new Error('Supabase não configurado')
+  const { data, error } = await supabase
+    .from('formulario_respostas')
+    .insert({ formulario_id: formularioId, cliente_id: clienteId })
+    .select('token')
+    .single()
+  if (error) throw error
+  return data as { token: string }
+}
+
+export async function confirmarPlano(respostaId: string) {
+  if (!SUPABASE_PRONTO) return
+  const { error } = await supabase
+    .from('formulario_respostas')
+    .update({ plano_confirmado: true })
+    .eq('id', respostaId)
+  if (error) throw error
+}
+
+export async function salvarFormulario(
+  f: { id?: string; nome: string; descricao?: string; campos: CampoForm[] },
+) {
+  if (!SUPABASE_PRONTO) throw new Error('Supabase não configurado')
+  if (f.id) {
+    const { error } = await supabase
+      .from('formularios')
+      .update({ nome: f.nome, descricao: f.descricao, campos: f.campos })
+      .eq('id', f.id)
+    if (error) throw error
+  } else {
+    const { error } = await supabase
+      .from('formularios')
+      .insert({ nome: f.nome, descricao: f.descricao, campos: f.campos })
+    if (error) throw error
+  }
+}
+
 export async function salvarFaseConfig(f: FaseConfig) {
   if (!SUPABASE_PRONTO) return
   const { error } = await supabase

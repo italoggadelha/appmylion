@@ -1,5 +1,6 @@
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { listarRespostas } from '@/lib/repo'
 import { motion } from 'framer-motion'
 import {
   AreaChart,
@@ -49,6 +50,18 @@ const MEDALHA = ['#e7cc83', '#c9c9d2', '#c79a3a']
 
 export default function Dashboard() {
   const { clientes, tarefas, aprovacoes, membros } = useData()
+  const [planosPendentes, setPlanosPendentes] = useState(0)
+
+  useEffect(() => {
+    listarRespostas()
+      .then((rs) =>
+        setPlanosPendentes(
+          rs.filter((r) => r.status === 'respondido' && !r.planoConfirmado)
+            .length,
+        ),
+      )
+      .catch(() => {})
+  }, [])
 
   const m = useMemo(() => {
     const ativos = clientes.filter((c) => c.status === 'ativo')
@@ -160,6 +173,17 @@ export default function Dashboard() {
           </Link>
         }
       />
+
+      {planosPendentes > 0 && (
+        <Link
+          to="/formularios"
+          className="mb-4 flex items-center gap-2 rounded-xl border border-gold-500/25 bg-gold-500/[0.06] px-4 py-2.5 text-sm font-medium text-gold-200 transition-colors hover:bg-gold-500/[0.1]"
+        >
+          <Trophy size={15} />
+          {planosPendentes} plano(s) estratégico(s) gerado(s) pela IA aguardando
+          sua confirmação →
+        </Link>
+      )}
 
       {/* ── RANKING / GAMIFICAÇÃO ── */}
       <div className="panel mb-4 overflow-hidden">
