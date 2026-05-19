@@ -89,6 +89,7 @@ const mapTarefa = (r: any, nomes: Map<string, string>): Tarefa => ({
   tempoEstimadoMin: r.tempo_estimado_min ?? undefined,
   iniciadaEm: r.iniciada_em ?? null,
   pontos: r.pontos ?? 0,
+  funcao: r.funcao ?? null,
 })
 
 const mapAprovacao = (r: any, nomes: Map<string, string>): Aprovacao => ({
@@ -199,6 +200,7 @@ export async function criarTarefa(t: Partial<Tarefa>) {
       responsavel_id: t.responsavelId || null,
       prazo: t.prazo || null,
       precisa_aprovacao: !!t.precisaAprovacao,
+      funcao: t.funcao ?? null,
     })
     .select()
     .single()
@@ -220,6 +222,7 @@ export async function atualizarTarefa(id: string, t: Partial<Tarefa>) {
   if (t.responsavelId !== undefined) campos.responsavel_id = t.responsavelId || null
   if (t.prazo !== undefined) campos.prazo = t.prazo || null
   if (t.precisaAprovacao !== undefined) campos.precisa_aprovacao = t.precisaAprovacao
+  if (t.funcao !== undefined) campos.funcao = t.funcao || null
   const { error } = await supabase.from('tarefas').update(campos).eq('id', id)
   if (error) throw error
 }
@@ -294,7 +297,7 @@ export async function gerarTarefasFase(clienteId: string, fase: FaseId) {
   if (!SUPABASE_PRONTO) return 0
   const { data: tpls } = await supabase
     .from('tarefa_templates')
-    .select('id, titulo, ordem, subtarefa_templates(titulo, ordem)')
+    .select('id, titulo, ordem, funcao, subtarefa_templates(titulo, ordem)')
     .eq('fase', fase)
     .order('ordem')
   const lista = tpls ?? []
@@ -309,6 +312,7 @@ export async function gerarTarefasFase(clienteId: string, fase: FaseId) {
         status: 'a_fazer',
         prioridade: 'media',
         ordem: tp.ordem,
+        funcao: tp.funcao ?? null,
       })
       .select('id')
       .single()
@@ -325,6 +329,46 @@ export async function gerarTarefasFase(clienteId: string, fase: FaseId) {
     }
   }
   return lista.length
+}
+
+// ── Plano de conteúdo por contrato (3/6/9/12 meses) ─────────────────
+export async function gerarPlanoConteudo(
+  clienteId: string,
+  meses: number,
+): Promise<number> {
+  if (!SUPABASE_PRONTO || !meses) return 0
+  // evita duplicar
+  const { data: existe } = await supabase
+    .from('tarefas')
+    .select('id')
+    .eq('cliente_id', clienteId)
+    .ilike('titulo', 'Plano de conteúdo — Mês%')
+    .limit(1)
+  if (existe && existe.length) return 0
+
+  const linhas: any[] = []
+  for (let m = 1; m <= meses; m++) {
+    linhas.push(
+      {
+        cliente_id: clienteId, fase: 'demanda', status: 'a_fazer',
+        prioridade: 'alta', ordem: m * 10,
+        titulo: `Plano de conteúdo — Mês ${m}`, funcao: 'conteudo',
+      },
+      {
+        cliente_id: clienteId, fase: 'demanda', status: 'a_fazer',
+        prioridade: 'media', ordem: m * 10 + 1,
+        titulo: `Criação de artes — Mês ${m}`, funcao: 'design',
+      },
+      {
+        cliente_id: clienteId, fase: 'demanda', status: 'a_fazer',
+        prioridade: 'media', ordem: m * 10 + 2,
+        titulo: `Conteúdos para gravação — Mês ${m}`, funcao: 'conteudo',
+      },
+    )
+  }
+  const { error } = await supabase.from('tarefas').insert(linhas)
+  if (error) throw error
+  return linhas.length
 }
 
 // ── Anexos de tarefa ────────────────────────────────────────────────

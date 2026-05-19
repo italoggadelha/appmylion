@@ -28,6 +28,7 @@ export default function Portal() {
     publicado: false,
     metricas: {} as Record<string, string>,
     observacoes: '',
+    criativos: [] as { nome: string; resultado: string }[],
   })
 
   useEffect(() => {
@@ -45,6 +46,9 @@ export default function Portal() {
               CAMPOS_METRICA.map((c) => [c.k, String(r.metricas[c.k] ?? '')]),
             ),
             observacoes: r.metricas.observacoes ?? '',
+            criativos: Array.isArray(r.metricas.criativos)
+              ? r.metricas.criativos
+              : [],
           })
         } else {
           setForm({
@@ -53,6 +57,7 @@ export default function Portal() {
             publicado: false,
             metricas: {},
             observacoes: '',
+            criativos: [],
           })
         }
       })
@@ -64,7 +69,10 @@ export default function Portal() {
     if (!SUPABASE_PRONTO) return alert('Disponível com o backend conectado.')
     setSalvando(true)
     try {
-      const metricas: Record<string, any> = { observacoes: form.observacoes }
+      const metricas: Record<string, any> = {
+        observacoes: form.observacoes,
+        criativos: form.criativos.filter((c) => c.nome.trim()),
+      }
       for (const c of CAMPOS_METRICA)
         metricas[c.k] = Number(form.metricas[c.k]) || 0
       const r = await salvarRelatorio(sel, {
@@ -217,6 +225,48 @@ export default function Portal() {
                     }
                   />
                 </Campo>
+              </div>
+
+              {/* Top 5 criativos */}
+              <div className="mt-4">
+                <label className="mb-1 block text-xs font-semibold text-ink-300">
+                  Top 5 criativos do período
+                </label>
+                <div className="space-y-2">
+                  {[0, 1, 2, 3, 4].map((i) => (
+                    <div key={i} className="flex gap-2">
+                      <span className="grid h-9 w-7 shrink-0 place-items-center rounded-lg bg-ink-800 text-xs font-bold text-ink-500">
+                        {i + 1}
+                      </span>
+                      <input
+                        className="input flex-1"
+                        placeholder="Nome / descrição do criativo"
+                        value={form.criativos[i]?.nome ?? ''}
+                        onChange={(e) => {
+                          const cs = [...form.criativos]
+                          cs[i] = {
+                            nome: e.target.value,
+                            resultado: cs[i]?.resultado ?? '',
+                          }
+                          setForm((f) => ({ ...f, criativos: cs }))
+                        }}
+                      />
+                      <input
+                        className="input w-40"
+                        placeholder="Resultado (ex.: 42 leads)"
+                        value={form.criativos[i]?.resultado ?? ''}
+                        onChange={(e) => {
+                          const cs = [...form.criativos]
+                          cs[i] = {
+                            nome: cs[i]?.nome ?? '',
+                            resultado: e.target.value,
+                          }
+                          setForm((f) => ({ ...f, criativos: cs }))
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
 
               <button

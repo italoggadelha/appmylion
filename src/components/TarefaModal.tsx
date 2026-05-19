@@ -5,6 +5,7 @@ import { X, Trash2 } from 'lucide-react'
 import { useData } from '@/lib/data'
 import {
   FASES_RUGIDO,
+  FUNCOES,
   STATUS_LABEL,
   type FaseId,
   type TarefaStatus,
@@ -47,6 +48,7 @@ export default function TarefaModal({
     status: 'a_fazer' as TarefaStatus,
     prioridade: 'media' as Prioridade,
     responsavelId: '',
+    funcao: '',
     prazo: '',
     precisaAprovacao: false,
   })
@@ -61,6 +63,7 @@ export default function TarefaModal({
         status: tarefa.status,
         prioridade: tarefa.prioridade,
         responsavelId: tarefa.responsavelId ?? '',
+        funcao: tarefa.funcao ?? '',
         prazo: tarefa.prazo ? tarefa.prazo.slice(0, 10) : '',
         precisaAprovacao: tarefa.precisaAprovacao,
       })
@@ -73,6 +76,7 @@ export default function TarefaModal({
         status: 'a_fazer',
         prioridade: 'media',
         responsavelId: '',
+        funcao: '',
         prazo: '',
         precisaAprovacao: false,
       }))
@@ -231,22 +235,41 @@ export default function TarefaModal({
                   />
                 </div>
               </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-ink-300">
-                  Responsável
-                </label>
-                <select
-                  className="input"
-                  value={f.responsavelId}
-                  onChange={(e) => set('responsavelId', e.target.value)}
-                >
-                  <option value="">— Sem responsável —</option>
-                  {membros.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.nome} · {m.cargo}
-                    </option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-ink-300">
+                    Responsável
+                  </label>
+                  <select
+                    className="input"
+                    value={f.responsavelId}
+                    onChange={(e) => set('responsavelId', e.target.value)}
+                  >
+                    <option value="">— Sem responsável —</option>
+                    {membros.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.nome} · {m.cargo}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-ink-300">
+                    Função responsável
+                  </label>
+                  <select
+                    className="input"
+                    value={f.funcao}
+                    onChange={(e) => set('funcao', e.target.value)}
+                  >
+                    <option value="">— Função —</option>
+                    {FUNCOES.map((fn) => (
+                      <option key={fn.id} value={fn.id}>
+                        {fn.nome}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <label className="flex cursor-pointer items-center gap-2 text-sm text-ink-200">
                 <input

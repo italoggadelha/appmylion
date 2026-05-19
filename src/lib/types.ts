@@ -57,6 +57,7 @@ export interface Tarefa {
   tempoEstimadoMin?: number
   iniciadaEm?: string | null
   pontos: number
+  funcao?: string | null
 }
 
 export type AprovacaoStatus = 'pendente' | 'aprovado' | 'reprovado' | 'ajustes'

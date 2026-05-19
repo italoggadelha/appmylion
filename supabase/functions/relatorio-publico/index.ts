@@ -63,16 +63,26 @@ Deno.serve(async (req) => {
       if (String(senha) !== String(r.rel.senha))
         return json({ error: 'senha_invalida' }, 401)
 
-      // Progresso por fase RUGIDO
+      // Progresso + tarefas por fase RUGIDO
       const { data: tarefas } = await admin
         .from('tarefas')
-        .select('fase, status')
+        .select('fase, status, titulo, prazo')
         .eq('cliente_id', r.rel.cliente_id)
+        .order('ordem')
       const fases = ['raiox', 'ultra', 'gameplan', 'impl', 'demanda', 'escala']
       const progresso = fases.map((f) => {
         const t = (tarefas ?? []).filter((x: any) => x.fase === f)
         const ok = t.filter((x: any) => x.status === 'concluida').length
-        return { fase: f, total: t.length, concluidas: ok }
+        return {
+          fase: f,
+          total: t.length,
+          concluidas: ok,
+          tarefas: t.map((x: any) => ({
+            titulo: x.titulo,
+            status: x.status,
+            prazo: x.prazo,
+          })),
+        }
       })
 
       return json({

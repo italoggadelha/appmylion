@@ -16,6 +16,7 @@ import {
   listarRespostas,
   criarEnvioFormulario,
   confirmarPlano,
+  gerarPlanoConteudo,
   salvarFormulario,
   type FormularioModelo,
   type RespostaForm,
@@ -103,17 +104,29 @@ export default function Formularios() {
               Nenhum formulário enviado ainda.
             </div>
           )}
-          {envios.map((e) => (
-            <EnvioCard
-              key={e.id}
-              envio={e}
-              empresa={clientePorId(e.clienteId)?.empresa ?? '—'}
-              onConfirmar={async () => {
-                await confirmarPlano(e.id)
-                recarregar()
-              }}
-            />
-          ))}
+          {envios.map((e) => {
+            const cli = clientePorId(e.clienteId)
+            return (
+              <EnvioCard
+                key={e.id}
+                envio={e}
+                empresa={cli?.empresa ?? '—'}
+                onConfirmar={async () => {
+                  await confirmarPlano(e.id)
+                  // Plano confirmado → dispara o plano de conteúdo do contrato
+                  const n = await gerarPlanoConteudo(
+                    e.clienteId,
+                    cli?.mesesContrato ?? 0,
+                  )
+                  if (n > 0)
+                    alert(
+                      `Plano confirmado! ${n} tarefas de conteúdo/criativos criadas para os ${cli?.mesesContrato} meses de contrato.`,
+                    )
+                  recarregar()
+                }}
+              />
+            )
+          })}
         </div>
       ) : (
         <ModelosTab modelos={modelos} onMudou={recarregar} />

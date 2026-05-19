@@ -15,7 +15,7 @@ import {
   HardDrive,
 } from 'lucide-react'
 import { useData } from '@/lib/data'
-import { criarAprovacao } from '@/lib/repo'
+import { criarAprovacao, gerarPlanoConteudo } from '@/lib/repo'
 import { SUPABASE_PRONTO } from '@/lib/supabase'
 import TarefaModal from '@/components/TarefaModal'
 import {
@@ -24,6 +24,7 @@ import {
   STATUS_LABEL,
   STATUS_COR,
   PRIORIDADE_COR,
+  funcaoInfo,
   type FaseId,
 } from '@/data/rugido'
 import type { Tarefa } from '@/lib/types'
@@ -32,10 +33,30 @@ import { Avatar, Badge, ProgressRing, ProgressBar } from '@/components/ui'
 
 export default function ClienteDetalhe() {
   const { id } = useParams()
-  const { clientePorId, tarefasDoCliente, avancarFase } = useData()
+  const { clientePorId, tarefasDoCliente, avancarFase, recarregar } = useData()
   const cliente = clientePorId(id ?? '')
   const tarefas = cliente ? tarefasDoCliente(cliente.id) : []
   const [avancando, setAvancando] = useState(false)
+  const [gerandoConteudo, setGerandoConteudo] = useState(false)
+
+  async function gerarConteudo() {
+    if (!cliente?.mesesContrato) return
+    if (!SUPABASE_PRONTO) return alert('Disponível com o backend conectado.')
+    setGerandoConteudo(true)
+    try {
+      const n = await gerarPlanoConteudo(cliente.id, cliente.mesesContrato)
+      await recarregar()
+      alert(
+        n > 0
+          ? `${n} tarefas de conteúdo criadas para ${cliente.mesesContrato} meses.`
+          : 'O plano de conteúdo deste contrato já foi gerado.',
+      )
+    } catch {
+      alert('Falha ao gerar o plano de conteúdo.')
+    } finally {
+      setGerandoConteudo(false)
+    }
+  }
   const faseAtualIdx = cliente
     ? FASES_RUGIDO.findIndex((f) => f.id === cliente.faseAtual)
     : 0
@@ -114,16 +135,30 @@ export default function ClienteDetalhe() {
               {cliente.nome} · {cliente.segmento}
               {cliente.mesesContrato ? ` · contrato ${cliente.mesesContrato} meses` : ''}
             </p>
-            {cliente.driveUrl && (
-              <a
-                href={cliente.driveUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-1 inline-flex items-center gap-1.5 text-xs font-semibold text-gold-400 hover:text-gold-300"
-              >
-                <HardDrive size={13} /> Materiais no Google Drive
-              </a>
-            )}
+            <div className="mt-1.5 flex flex-wrap items-center gap-3">
+              {cliente.driveUrl && (
+                <a
+                  href={cliente.driveUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-gold-400 hover:text-gold-300"
+                >
+                  <HardDrive size={13} /> Materiais no Google Drive
+                </a>
+              )}
+              {cliente.mesesContrato ? (
+                <button
+                  onClick={gerarConteudo}
+                  disabled={gerandoConteudo}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink-300 hover:text-gold-300"
+                >
+                  <Plus size={13} />
+                  {gerandoConteudo
+                    ? 'Gerando…'
+                    : `Gerar plano de conteúdo (${cliente.mesesContrato} meses)`}
+                </button>
+              ) : null}
+            </div>
           </div>
 
           <div className="flex items-center gap-5">
@@ -352,8 +387,19 @@ function TarefaCard({ tarefa }: { tarefa: Tarefa }) {
           </span>
           {tarefa.precisaAprovacao && <Badge cor="#8b5cf6">aprovação</Badge>}
         </div>
-        <div className="mt-0.5 flex items-center gap-3 text-[11px] text-ink-500">
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-ink-500">
           <span style={{ color: si.cor }}>{si.nome}</span>
+          {funcaoInfo(tarefa.funcao) && (
+            <span
+              className="rounded px-1.5 py-0.5 font-semibold"
+              style={{
+                backgroundColor: `${funcaoInfo(tarefa.funcao)!.cor}22`,
+                color: funcaoInfo(tarefa.funcao)!.cor,
+              }}
+            >
+              {funcaoInfo(tarefa.funcao)!.nome}
+            </span>
+          )}
           <span className="flex items-center gap-1">
             <Check size={11} /> {subFeitas}/{tarefa.subtarefas.length}
           </span>
