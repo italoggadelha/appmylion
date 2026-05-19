@@ -12,6 +12,7 @@ import Aprovacoes from './pages/Aprovacoes'
 import AgentesIA from './pages/AgentesIA'
 import Equipe from './pages/Equipe'
 import Automacoes from './pages/Automacoes'
+import Configuracoes from './pages/Configuracoes'
 import EmBreve from './pages/EmBreve'
 
 export default function App() {
@@ -39,6 +40,7 @@ export default function App() {
         <Route path="agentes" element={<AgentesIA />} />
         <Route path="equipe" element={<Equipe />} />
         <Route path="automacoes" element={<Automacoes />} />
+        <Route path="configuracoes" element={<Configuracoes />} />
         <Route
           path="relatorios"
           element={<EmBreve titulo="Relatórios & Inteligência" fase="Fase 3" />}

@@ -9,6 +9,7 @@ import {
   BarChart3,
   UserCog,
   Globe,
+  Settings,
 } from 'lucide-react'
 
 const NAV = [
@@ -24,6 +25,7 @@ const NAV = [
 const NAV_GESTAO = [
   { to: '/equipe', label: 'Equipe & Acessos', icon: UserCog },
   { to: '/portal', label: 'Portal do Cliente', icon: Globe },
+  { to: '/configuracoes', label: 'Configurações', icon: Settings },
 ]
 
 function Item({
