@@ -14,6 +14,9 @@ import {
   atualizarTarefa,
   excluirTarefa,
   setSubtarefa,
+  iniciarTarefa,
+  pararTarefa,
+  setTempoTarefa,
   criarCliente,
   gerarTarefasFase,
   atualizarCliente,
@@ -37,6 +40,9 @@ interface DataCtx extends Snapshot {
   salvarTarefa: (t: Partial<Tarefa> & { id?: string }) => Promise<void>
   removerTarefa: (id: string) => Promise<void>
   alternarSubtarefa: (subId: string, concluida: boolean) => void
+  iniciarTimer: (id: string) => Promise<void>
+  pararTimer: (id: string) => Promise<void>
+  definirTempo: (id: string, seg: number) => Promise<void>
   novoCliente: (dados: Partial<Cliente>) => Promise<void>
   avancarFase: (clienteId: string, novaFase: FaseId) => Promise<number>
   alternarAutomacao: (id: string, ativa: boolean) => void
@@ -115,6 +121,30 @@ export function DataProvider({ children }: { children: ReactNode }) {
     await recarregar()
   }
 
+  async function iniciarTimer(id: string) {
+    await iniciarTarefa(id)
+    await recarregar()
+  }
+
+  async function pararTimer(id: string) {
+    const t = snap.tarefas.find((x) => x.id === id)
+    if (!t) return
+    let total = t.tempoGastoSeg
+    if (t.iniciadaEm) {
+      total += Math.max(
+        0,
+        Math.round((Date.now() - new Date(t.iniciadaEm).getTime()) / 1000),
+      )
+    }
+    await pararTarefa(id, total)
+    await recarregar()
+  }
+
+  async function definirTempo(id: string, seg: number) {
+    await setTempoTarefa(id, seg)
+    await recarregar()
+  }
+
   function alternarSubtarefa(subId: string, concluida: boolean) {
     setSnap((s) => ({
       ...s,
@@ -170,6 +200,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
     salvarTarefa,
     removerTarefa,
     alternarSubtarefa,
+    iniciarTimer,
+    pararTimer,
+    definirTempo,
     novoCliente,
     avancarFase,
     alternarAutomacao,

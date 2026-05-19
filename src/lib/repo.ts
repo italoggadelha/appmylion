@@ -83,9 +83,13 @@ const mapTarefa = (r: any, nomes: Map<string, string>): Tarefa => ({
   comentarios: 0,
   anexos: 0,
   criadaEm: r.criado_em,
+  tempoGastoSeg: r.tempo_gasto_seg ?? 0,
+  tempoEstimadoMin: r.tempo_estimado_min ?? undefined,
+  iniciadaEm: r.iniciada_em ?? null,
+  pontos: r.pontos ?? 0,
 })
 
-const mapAprovacao = (r: any): Aprovacao => ({
+const mapAprovacao = (r: any, nomes: Map<string, string>): Aprovacao => ({
   id: r.id,
   clienteId: r.cliente_id,
   tarefaId: r.tarefa_id ?? undefined,
@@ -95,6 +99,8 @@ const mapAprovacao = (r: any): Aprovacao => ({
   enviadaEm: r.enviada_em,
   token: r.token,
   feedback: r.feedback ?? undefined,
+  solicitadoPor: r.solicitado_por ?? undefined,
+  solicitanteNome: r.solicitado_por ? nomes.get(r.solicitado_por) : undefined,
 })
 
 // ── Snapshot completo carregado após o login ────────────────────────
@@ -146,7 +152,7 @@ export async function carregarTudo(): Promise<Snapshot> {
     membros,
     clientes: (cRes.data ?? []).map((r) => mapCliente(r, nomes)),
     tarefas: (tRes.data ?? []).map((r) => mapTarefa(r, nomes)),
-    aprovacoes: (aRes.data ?? []).map(mapAprovacao),
+    aprovacoes: (aRes.data ?? []).map((r) => mapAprovacao(r, nomes)),
     automacoes: (auRes.data ?? []) as Automacao[],
     status: ((sRes.data ?? []) as StatusTarefa[]).length
       ? (sRes.data as StatusTarefa[])
@@ -216,6 +222,34 @@ export async function atualizarTarefa(id: string, t: Partial<Tarefa>) {
   if (error) throw error
 }
 
+// ── Cronômetro de tarefa ────────────────────────────────────────────
+export async function iniciarTarefa(id: string) {
+  if (!SUPABASE_PRONTO) return
+  const { error } = await supabase
+    .from('tarefas')
+    .update({ iniciada_em: new Date().toISOString(), status: 'fazendo' })
+    .eq('id', id)
+  if (error) throw error
+}
+
+export async function pararTarefa(id: string, tempoTotalSeg: number) {
+  if (!SUPABASE_PRONTO) return
+  const { error } = await supabase
+    .from('tarefas')
+    .update({ iniciada_em: null, tempo_gasto_seg: tempoTotalSeg })
+    .eq('id', id)
+  if (error) throw error
+}
+
+export async function setTempoTarefa(id: string, seg: number) {
+  if (!SUPABASE_PRONTO) return
+  const { error } = await supabase
+    .from('tarefas')
+    .update({ tempo_gasto_seg: seg })
+    .eq('id', id)
+  if (error) throw error
+}
+
 export async function excluirTarefa(id: string) {
   if (!SUPABASE_PRONTO) return
   const { error } = await supabase.from('tarefas').delete().eq('id', id)
@@ -236,6 +270,7 @@ export async function criarAprovacao(a: {
   tarefaId?: string
   titulo: string
   tipo: string
+  solicitadoPor?: string
 }) {
   if (!SUPABASE_PRONTO) throw new Error('Supabase não configurado')
   const { data, error } = await supabase
@@ -245,6 +280,7 @@ export async function criarAprovacao(a: {
       tarefa_id: a.tarefaId ?? null,
       titulo: a.titulo,
       tipo: a.tipo,
+      solicitado_por: a.solicitadoPor ?? null,
     })
     .select('token')
     .single()

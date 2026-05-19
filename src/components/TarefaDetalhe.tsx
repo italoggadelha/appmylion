@@ -16,6 +16,10 @@ import {
   CheckCircle2,
   Lightbulb,
   BookOpen,
+  Play,
+  Square,
+  Clock,
+  Trophy,
 } from 'lucide-react'
 import { useData } from '@/lib/data'
 import { faseById, PRIORIDADE_COR } from '@/data/rugido'
@@ -27,8 +31,8 @@ import {
   criarAprovacao,
 } from '@/lib/repo'
 import { SUPABASE_PRONTO } from '@/lib/supabase'
-import type { Anexo, AnexoCategoria, AnexoTipo } from '@/lib/types'
-import { dataCurta } from '@/lib/format'
+import type { Anexo, AnexoCategoria, AnexoTipo, Tarefa } from '@/lib/types'
+import { dataCurta, duracao, cronometro } from '@/lib/format'
 import { Avatar } from './ui'
 import TarefaModal from './TarefaModal'
 
@@ -53,6 +57,9 @@ export default function TarefaDetalhe() {
     status,
     salvarTarefa,
     alternarSubtarefa,
+    iniciarTimer,
+    pararTimer,
+    definirTempo,
   } = useData()
   const tarefa = tarefas.find((t) => t.id === tarefaAberta)
   const [anexos, setAnexos] = useState<Anexo[]>([])
@@ -194,6 +201,14 @@ export default function TarefaDetalhe() {
                   </span>
                 </Meta>
               </div>
+
+              {/* Cronômetro */}
+              <Cronometro
+                tarefa={tarefa}
+                onIniciar={() => iniciarTimer(tarefa.id)}
+                onParar={() => pararTimer(tarefa.id)}
+                onManual={(seg) => definirTempo(tarefa.id, seg)}
+              />
 
               {/* Checklist */}
               <div>
@@ -479,6 +494,113 @@ function SecaoAnexos({
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+// ── Cronômetro da tarefa ────────────────────────────────────────────
+function Cronometro({
+  tarefa,
+  onIniciar,
+  onParar,
+  onManual,
+}: {
+  tarefa: Tarefa
+  onIniciar: () => void
+  onParar: () => void
+  onManual: (seg: number) => void
+}) {
+  const rodando = !!tarefa.iniciadaEm
+  const [agora, setAgora] = useState(Date.now())
+  const [manual, setManual] = useState(false)
+  const [horas, setHoras] = useState('')
+  const [mins, setMins] = useState('')
+
+  useEffect(() => {
+    if (!rodando) return
+    const i = setInterval(() => setAgora(Date.now()), 1000)
+    return () => clearInterval(i)
+  }, [rodando])
+
+  const extra = rodando
+    ? Math.max(0, Math.round((agora - new Date(tarefa.iniciadaEm!).getTime()) / 1000))
+    : 0
+  const total = tarefa.tempoGastoSeg + extra
+
+  function salvarManual() {
+    const seg = (Number(horas) || 0) * 3600 + (Number(mins) || 0) * 60
+    onManual(seg)
+    setManual(false)
+    setHoras('')
+    setMins('')
+  }
+
+  return (
+    <div className="rounded-xl border border-white/[0.06] bg-ink-900/60 p-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-ink-500">
+          <Clock size={13} /> Tempo de execução
+        </div>
+        <span className="flex items-center gap-1 text-[11px] font-semibold text-gold-300">
+          <Trophy size={12} /> {tarefa.pontos} pts
+        </span>
+      </div>
+
+      <div className="mt-2 flex items-center gap-3">
+        <div
+          className={`font-display text-2xl font-bold tabular-nums ${
+            rodando ? 'text-emerald-400' : 'text-ink-50'
+          }`}
+        >
+          {cronometro(total)}
+        </div>
+        {rodando ? (
+          <button onClick={onParar} className="btn-ghost py-1.5 text-xs">
+            <Square size={13} /> Parar
+          </button>
+        ) : (
+          <button onClick={onIniciar} className="btn-gold py-1.5 text-xs">
+            <Play size={13} /> Iniciar
+          </button>
+        )}
+        <button
+          onClick={() => setManual((v) => !v)}
+          className="text-[11px] font-semibold text-ink-400 hover:text-gold-300"
+        >
+          Tempo manual
+        </button>
+      </div>
+
+      {manual && (
+        <div className="mt-3 flex items-end gap-2">
+          <div>
+            <label className="text-[10px] text-ink-500">Horas</label>
+            <input
+              type="number"
+              className="input w-20 py-1.5"
+              value={horas}
+              onChange={(e) => setHoras(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="text-[10px] text-ink-500">Minutos</label>
+            <input
+              type="number"
+              className="input w-20 py-1.5"
+              value={mins}
+              onChange={(e) => setMins(e.target.value)}
+            />
+          </div>
+          <button onClick={salvarManual} className="btn-gold py-1.5 text-xs">
+            Definir
+          </button>
+        </div>
+      )}
+
+      <div className="mt-1.5 text-[11px] text-ink-500">
+        Registrado: {duracao(tarefa.tempoGastoSeg)}
+        {rodando && ' · cronômetro em andamento'}
+      </div>
     </div>
   )
 }

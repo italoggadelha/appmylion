@@ -51,6 +51,10 @@ export interface Tarefa {
   comentarios: number
   anexos: number
   criadaEm: string
+  tempoGastoSeg: number
+  tempoEstimadoMin?: number
+  iniciadaEm?: string | null
+  pontos: number
 }
 
 export type AprovacaoStatus = 'pendente' | 'aprovado' | 'reprovado' | 'ajustes'
@@ -114,4 +118,6 @@ export interface Aprovacao {
   enviadaEm: string
   token: string
   feedback?: string
+  solicitadoPor?: string
+  solicitanteNome?: string
 }

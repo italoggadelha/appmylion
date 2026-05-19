@@ -98,6 +98,9 @@ function gerarTarefas(): Tarefa[] {
           comentarios: (n + ti) % 5,
           anexos: (n * ti) % 4,
           criadaEm: new Date(Date.now() - n * 86400000).toISOString(),
+          tempoGastoSeg: status === 'concluida' ? ((n % 6) + 1) * 1800 : 0,
+          iniciadaEm: null,
+          pontos: status === 'concluida' ? 10 + ((n % 6) + 1) * 3 : 0,
         })
       })
     }
